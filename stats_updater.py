@@ -1,7 +1,6 @@
 import argparse
 import logging
 from logging import handlers
-from stats_insert import StatsInsert
 from stats_update import StatsUpdate
 from database import Database
 import json
@@ -33,9 +32,9 @@ def setup_console_logging():
 def main():
     setup_console_logging()
     logger = logging.getLogger('logger')
-    parser = argparse.ArgumentParser(description='Stats2 insert and update')
+    parser = argparse.ArgumentParser(description='Stats2 update')
     parser.add_argument('--action',
-                        choices=['insert', 'update', 'see', 'drop'],
+                        choices=['update', 'see', 'drop'],
                         required=True,
                         help='Action to be performed.')
     parser.add_argument('--name',
@@ -51,10 +50,7 @@ def main():
     name = args.get('name', None)
     days = args.get('days', None)
 
-    if action == 'insert':
-        stats_insert = StatsInsert()
-        stats_insert.perform_insert(days)
-    elif action == 'update':
+    if action == 'update':
         stats_update = StatsUpdate()
         stats_update.perform_update(name, days)
     elif action == 'see':

@@ -43,5 +43,15 @@ class Database:
         else:
             return None
 
+    def query(self, query_dict=None, page=0, page_size=100):
+        table = self.stats_db['request']
+        if query_dict is not None:
+            requests = table.find(query_dict)
+        else:
+            requests = table.find()
+
+        requests = requests.skip(page * page_size).limit(page_size)
+        return list(requests)
+
     def clear_database(self):
         self.stats_db.request.drop()

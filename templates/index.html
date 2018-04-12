@@ -1,0 +1,84 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+        <style>
+        .orange-bar {
+            background-color:#FF6F00;
+            line-height:10px;
+            height: 10px;
+            display: inline-block;
+            max-width: 100%;
+        }
+        .blue-bar {
+            background-color:#01579B;
+            line-height:10px;
+            height: 10px;
+            display: inline-block;
+            max-width: 100%;
+        }
+        .gray-bar {
+            width: 100px;
+            background-color:#ADADAD;
+            line-height:10px;
+            height: 10px;
+            font-size: 0;
+            overflow: hidden;
+        }
+        </style>
+    </head>
+    <body>
+        <h1 style="margin: 10px;"><a style="text-decoration: none;" href="/">Stats<sup>2</sup></a></h1>
+        <table class="table" style="font-size: 0.75em">
+            <tr>
+                <th>Request name</th>
+                <th>Expected events</th>
+                <th>Open/Done</th>
+                <th>PrepID</th>
+                <th>Datasets</th>
+                <th>Type</th>
+                <th>Links</th>
+            </tr>
+            {% for request in requests %}
+                <tr>
+                    <td><a href="/?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
+                    <td>{{ request.TotalEvents }}</td>
+                    <td>
+                    {% set lastDataset = request.OutputDatasets | last %}
+                    {% if request.EventNumberHistory and lastDataset %}
+                        {% set lastHistory = request.EventNumberHistory | last %}
+                        {% set open = lastHistory.Datasets[lastDataset].OpenEvents %}
+                        {% set done = lastHistory.Datasets[lastDataset].DoneEvents %}
+                        {% set openPercent = open / request.TotalEvents * 100.0 %}
+                        {% set donePercent = done / request.TotalEvents * 100.0 %}
+                        {{ openPercent | round(2) }}%/{{ donePercent | round(2) }}%
+                        <div class="gray-bar"><!--
+                         --><div style="width: {{ donePercent }}%;" class="blue-bar"></div><!--
+                         --><div style="width: {{ openPercent }}%;" class="orange-bar"></div>
+                        </div>
+                    {% endif %}
+                    </td>
+                    <td><a href="/?prepid={{ request.PrepID }}">{{ request.PrepID }}</td>
+                    <td>
+                        {% for dataset in request.OutputDatasets %}
+                            <a href="/?dataset={{ dataset }}">{{ dataset }}</a>&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">DatasetInStats</a><br>
+                        {% endfor %}
+                    </td>
+                    <td>{{ request.RequestType }}</td>
+                    <td>
+                        <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID }}">pMp</a><br>
+                        <a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a><br>
+                        <a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+        {% if page != -1 %}
+            <span style="margin: 10px;">Current page is {{ page }}. {% if page > 0 %}<a href="/{{ page - 1 }}">Previous page</a>{% endif %} <a href="/{{ page + 1 }}">Next page</a></span>
+        {% endif %}
+    </body>
+</html>
