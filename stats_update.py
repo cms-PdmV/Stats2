@@ -1,4 +1,3 @@
-import json
 import logging
 from database import Database
 from utils import make_request_with_grid_cert, pick_attributes, get_request_list_from_req_mgr
@@ -8,6 +7,7 @@ import time
 class StatsUpdate():
     """
     Update events in the database
+    Statistics: updated 25962 requests in 23012.848s
     """
     def __init__(self):
         self.logger = logging.getLogger('logger')
@@ -18,8 +18,6 @@ class StatsUpdate():
             self.perform_update_one(name)
         elif days is not None:
             self.perform_update_days(days)
-        else:
-            self.perform_update_all()
 
     def perform_update_one(self, request_name):
         self.logger.info('Will update only one request: %s' % (request_name))
@@ -40,31 +38,43 @@ class StatsUpdate():
         self.logger.info('Updated %d requests in %.3fs\n' % (request_count,
                                                              (end_update - start_update)))
 
-    def perform_update_all(self):
-        requests = get_request_list_from_req_mgr()
-        self.logger.info('Will process %d requests' % (len(requests)))
-        for request_name in requests:
-            self.update_one(request_name)
-
     def update_one(self, request_name):
         self.logger.info('Updating %s' % (request_name))
         start_update = time.time()
-        self.database.insert_request_if_does_not_exist({'_id': request_name})
         req_dict_old = self.database.get_request(request_name)
-        req_dict_new = self.get_new_dict_from_reqmgr2(req_dict_old)
-        self.add_history_to_new_request(req_dict_new, req_dict_old.get('EventNumberHistory', None))
+        update_request_info = False
 
-        self.database.update_request(req_dict_new)
+        if req_dict_old is None:
+            req_dict_new = {'_id': request_name}
+            self.database.insert_request_if_does_not_exist(req_dict_new)
+            req_dict_old = req_dict_new
+            update_request_info = True
+        elif len(req_dict_old) < 2:
+            update_request_info = True
+
+        if update_request_info:
+            req_dict_new = self.get_new_dict_from_reqmgr2(req_dict_old)
+            req_dict_new['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
+            req_dict_old = req_dict_new
+
+        history_entry = self.get_new_history_entry(req_dict_old)
+        added_history_entry = self.add_history_to_new_request(req_dict_old, history_entry)
+
+        if update_request_info or added_history_entry:
+            self.database.update_request(req_dict_new)
+        else:
+            self.logger.info('Did not update %s because there was nothing to update' % (request_name))
+
         end_update = time.time()
         self.logger.info('Updated %s in %.3fs\n' % (request_name,
                                                     (end_update - start_update)))
 
     def get_new_dict_from_reqmgr2(self, req_dict_old):
         req_name = req_dict_old['_id']
-        url = 'https://cmsweb.cern.ch/reqmgr2/data/request?name=%s' % (req_name)
+        host_url = 'https://cmsweb.cern.ch'
+        query_url = '/reqmgr2/data/request?name=%s' % (req_name)
 
-        response = make_request_with_grid_cert(url)
-        req_dict_new = json.loads(response)
+        req_dict_new = make_request_with_grid_cert(host_url, query_url)
         req_dict_new = req_dict_new['result'][0][req_name]
         expected_events = req_dict_old.get('TotalEvents', 0)
         if expected_events <= 0:
@@ -87,66 +97,68 @@ class StatsUpdate():
         req_dict_new['_id'] = req_name
         req_dict_new['TotalEvents'] = expected_events
         req_dict_new['OutputDatasets'] = self.sort_datasets(req_dict_new['OutputDatasets'])
+        req_dict_new['EventNumberHistory'] = []
 
-        self.add_number_of_events(req_dict_new)
         return req_dict_new
 
     def get_event_count_from_dbs(self, dataset_name):
-        dbs3_url = 'https://cmsweb.cern.ch/dbs/prod/global/DBSReader/'
-        filesummaries = json.loads(make_request_with_grid_cert(dbs3_url + 'filesummaries?dataset=%s' % (dataset_name)))
+        host_url = 'https://cmsweb.cern.ch'
+        query_url = '/dbs/prod/global/DBSReader/filesummaries?dataset=%s' % (dataset_name)
+        filesummaries = make_request_with_grid_cert(host_url, query_url)
         if len(filesummaries) == 0:
-            # self.logger.warning('No summaries for %s' % (dataset_name))
             return 0
 
         return int(filesummaries[0]['num_event'])
 
-    def add_number_of_events(self, req_dict):
+    def get_new_history_entry(self, req_dict):
         announced = False
         for transition in req_dict['RequestTransition']:
             if transition['Status'] == 'announced':
                 announced = True
                 break
 
-        number_of_events = {'Time': int(time.time()), 'Datasets': {}}
+        history_entry = {'Time': int(time.time()), 'Datasets': {}}
         for dataset_name in req_dict['OutputDatasets']:
             output_dataset = req_dict['OutputDatasets'][-1:][0]
             events = self.get_event_count_from_dbs(output_dataset)
             if announced:
-                number_of_events['Datasets'][dataset_name] = {'OpenEvents': 0,
-                                                              'DoneEvents': events}
+                history_entry['Datasets'][dataset_name] = {'OpenEvents': 0,
+                                                           'DoneEvents': events}
             else:
-                number_of_events['Datasets'][dataset_name] = {'OpenEvents': events,
-                                                              'DoneEvents': 0}
+                history_entry['Datasets'][dataset_name] = {'OpenEvents': events,
+                                                           'DoneEvents': 0}
 
-        req_dict['EventNumberHistory'] = [number_of_events]
+        return history_entry
 
-    def add_history_to_new_request(self, new_request, old_history):
-        if old_history is not None and len(old_history) > 0:
-            last_old_history_entry = old_history[-1:][0]
-            last_new_history_entry = new_request['EventNumberHistory'][0]
+    def add_history_to_new_request(self, req_dict, history_entry):
+        if req_dict['EventNumberHistory'] is not None and len(req_dict['EventNumberHistory']) > 0:
+            last_history_entry = req_dict['EventNumberHistory'][-1:][0]
 
             needs_append = False
-            for dataset_name in last_new_history_entry['Datasets']:
-                if dataset_name not in last_old_history_entry['Datasets']:
+            for dataset_name in history_entry['Datasets']:
+                if dataset_name not in last_history_entry['Datasets']:
                     needs_append = True
                     break
 
-                old_open = last_old_history_entry['Datasets'][dataset_name]['OpenEvents']
-                old_done = last_old_history_entry['Datasets'][dataset_name]['DoneEvents']
-                new_open = last_new_history_entry['Datasets'][dataset_name]['OpenEvents']
-                new_done = last_new_history_entry['Datasets'][dataset_name]['DoneEvents']
+                old_open = last_history_entry['Datasets'][dataset_name]['OpenEvents']
+                old_done = last_history_entry['Datasets'][dataset_name]['DoneEvents']
+                new_open = history_entry['Datasets'][dataset_name]['OpenEvents']
+                new_done = history_entry['Datasets'][dataset_name]['DoneEvents']
                 if old_open != new_open or old_done != new_done:
                     needs_append = True
                     break
 
-            if needs_append:
-                new_request['EventNumberHistory'] = old_history.append(last_new_history_entry)
+            if not needs_append:
+                return
+        else:
+            req_dict['EventNumberHistory'] = []
+
+        req_dict['EventNumberHistory'].append(history_entry)
 
     def get_expected_events_with_dict(self, req_dict):
         """
         method to takes requests number_of_events/input_ds/block_white_list/run_white_list from rqmgr2 dict
         """
-
         if 'FilterEfficiency' in req_dict:
             f = float(req_dict['FilterEfficiency'])
         elif 'Task1' in req_dict and 'FilterEfficiency' in req_dict['Task1']:
@@ -167,9 +179,9 @@ class StatsUpdate():
         else:
             # self.logger.info('Resubmission %s, will get TotalInputEvents' % (req_dict['_id']))
             prep_id = req_dict['PrepID']
-            url = 'https://cmsweb.cern.ch/reqmgr2/data/request?mask=TotalInputEvents&mask=RequestType&prep_id=%s' % (prep_id)
-            ret = make_request_with_grid_cert(url)
-            ret = json.loads(ret)
+            host_url = 'https://cmsweb.cern.ch'
+            query_url = '/reqmgr2/data/request?mask=TotalInputEvents&mask=RequestType&prep_id=%s' % (prep_id)
+            ret = make_request_with_grid_cert(host_url, query_url)
             ret = ret['result'][0]
             for r in ret:
                 if ret[r]['RequestType'].lower() != 'resubmission' and ret[r]['TotalInputEvents'] is not None:
