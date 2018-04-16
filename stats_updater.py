@@ -1,32 +1,9 @@
 import argparse
 import logging
-from logging import handlers
 from stats_update import StatsUpdate
 from database import Database
 import json
-
-
-LOG_FORMAT = '[%(asctime)s][%(filename)s:%(lineno)d][%(levelname)s] %(message)s'
-
-
-def setup_file_logging():
-    # Max log file size - 5Mb
-    max_log_file_size = 1024 * 1024 * 5
-    max_log_file_count = 5
-    log_file_name = 'stats_update_logs.log'
-    logger = logging.getLogger('logger')
-    logger.setLevel(logging.INFO)
-    handler = handlers.RotatingFileHandler(log_file_name,
-                                           'a',
-                                           max_log_file_size,
-                                           max_log_file_count)
-    formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt='%d/%b/%Y:%H:%M:%S')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-
-def setup_console_logging():
-    logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+from utils import setup_console_logging
 
 
 def main():

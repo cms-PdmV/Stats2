@@ -21,31 +21,32 @@ class StatsUpdate():
 
     def perform_update_one(self, request_name):
         self.logger.info('Will update only one request: %s' % (request_name))
-        self.update_one(request_name)
+        self.update_one(request_name, True)
 
     def perform_update_days(self, days):
         start_update = time.time()
         requests = get_request_list_from_req_mgr(days)
         request_count = len(requests)
         self.logger.info('Will process %d requests' % (request_count))
-        current = 1
+        processed_count = 0
         for request_name in requests:
-            self.logger.info('Will process request %d/%d' % (current, request_count))
             self.update_one(request_name)
-            current += 1
+            processed_count += 1
+            self.logger.info('Processed %d/%d' % (processed_count, request_count))
 
         end_update = time.time()
         self.logger.info('Updated %d requests in %.3fs\n' % (request_count,
                                                              (end_update - start_update)))
 
-    def update_one(self, request_name):
-        self.logger.info('Updating %s' % (request_name))
+    def update_one(self, request_name, force_update=False):
+        self.logger.info('Processing %s' % (request_name))
         start_update = time.time()
         req_dict_old = self.database.get_request(request_name)
-        update_request_info = False
+        update_request_info = force_update
 
         if req_dict_old is None:
             req_dict_new = {'_id': request_name}
+            self.logger.info('Inserting %s' % (request_name))
             self.database.insert_request_if_does_not_exist(req_dict_new)
             req_dict_old = req_dict_new
             update_request_info = True
@@ -53,7 +54,7 @@ class StatsUpdate():
             update_request_info = True
 
         if update_request_info:
-            req_dict_new = self.get_new_dict_from_reqmgr2(req_dict_old)
+            req_dict_new = self.get_new_dict_from_reqmgr2(req_dict_old, force_update)
             req_dict_new['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
             req_dict_old = req_dict_new
 
@@ -61,15 +62,15 @@ class StatsUpdate():
         added_history_entry = self.add_history_to_new_request(req_dict_old, history_entry)
 
         if update_request_info or added_history_entry:
-            self.database.update_request(req_dict_new)
+            self.database.update_request(req_dict_old)
         else:
             self.logger.info('Did not update %s because there was nothing to update' % (request_name))
 
         end_update = time.time()
-        self.logger.info('Updated %s in %.3fs\n' % (request_name,
-                                                    (end_update - start_update)))
+        self.logger.info('Processed %s in %.3fs\n' % (request_name,
+                                                      (end_update - start_update)))
 
-    def get_new_dict_from_reqmgr2(self, req_dict_old):
+    def get_new_dict_from_reqmgr2(self, req_dict_old, recalculate_total_events=False):
         req_name = req_dict_old['_id']
         host_url = 'https://cmsweb.cern.ch'
         query_url = '/reqmgr2/data/request?name=%s' % (req_name)
@@ -77,7 +78,7 @@ class StatsUpdate():
         req_dict_new = make_request_with_grid_cert(host_url, query_url)
         req_dict_new = req_dict_new['result'][0][req_name]
         expected_events = req_dict_old.get('TotalEvents', 0)
-        if expected_events <= 0:
+        if expected_events <= 0 or recalculate_total_events:
             expected_events = self.get_expected_events_with_dict(req_dict_new)
 
         req_dict_new = pick_attributes(req_dict_new, ['AcquisitionEra',
@@ -149,11 +150,12 @@ class StatsUpdate():
                     break
 
             if not needs_append:
-                return
+                return False
         else:
             req_dict['EventNumberHistory'] = []
 
         req_dict['EventNumberHistory'].append(history_entry)
+        return True
 
     def get_expected_events_with_dict(self, req_dict):
         """

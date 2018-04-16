@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect
 from flask_restful import Api
 from database import Database
+from utils import setup_console_logging
 
 app = Flask(__name__)
 api = Api(app)
@@ -38,6 +39,7 @@ def update(request_name):
 
 
 def run_flask():
+    setup_console_logging()
     app.run(host='0.0.0.0',
             port=5000,
             debug=True,
