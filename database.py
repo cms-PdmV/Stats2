@@ -53,5 +53,19 @@ class Database:
         requests = requests.skip(page * page_size).limit(page_size)
         return list(requests)
 
+    def put_last_seq(self, last_seq):
+        table = self.stats_db['last_seq']
+        table.replace_one({'_id': 'last_seq'}, {'last_seq': last_seq}, upsert=True)
+
+    def get_last_seq(self):
+        table = self.stats_db['last_seq']
+        last_seq = list(table.find({'_id': 'last_seq'}))
+
+        if len(last_seq) < 1:
+            return 3539236
+        else:
+            return last_seq[0]['last_seq']
+
     def clear_database(self):
         self.stats_db.request.drop()
+        self.stats_db.last_seq.drop()

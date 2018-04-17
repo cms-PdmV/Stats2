@@ -13,19 +13,20 @@ class StatsUpdate():
         self.logger = logging.getLogger('logger')
         self.database = Database()
 
-    def perform_update(self, name=None, days=None):
+    def perform_update(self, name=None):
         if name is not None:
             self.perform_update_one(name)
-        elif days is not None:
-            self.perform_update_days(days)
+        else:
+            self.perform_update_since()
 
     def perform_update_one(self, request_name):
         self.logger.info('Will update only one request: %s' % (request_name))
         self.update_one(request_name, True)
 
-    def perform_update_days(self, days):
+    def perform_update_since(self):
         start_update = time.time()
-        requests = get_request_list_from_req_mgr(days)
+        last_seq = self.database.get_last_seq()
+        requests, last_seq = get_request_list_from_req_mgr(since=last_seq)
         request_count = len(requests)
         self.logger.info('Will process %d requests' % (request_count))
         processed_count = 0
@@ -37,6 +38,7 @@ class StatsUpdate():
         end_update = time.time()
         self.logger.info('Updated %d requests in %.3fs\n' % (request_count,
                                                              (end_update - start_update)))
+        self.database.put_last_seq(last_seq)
 
     def update_one(self, request_name, force_update=False):
         self.logger.info('Processing %s' % (request_name))
@@ -73,10 +75,9 @@ class StatsUpdate():
     def get_new_dict_from_reqmgr2(self, req_dict_old, recalculate_total_events=False):
         req_name = req_dict_old['_id']
         host_url = 'https://cmsweb.cern.ch'
-        query_url = '/reqmgr2/data/request?name=%s' % (req_name)
+        query_url = '/couchdb/reqmgr_workload_cache/%s' % (req_name)
 
         req_dict_new = make_request_with_grid_cert(host_url, query_url)
-        req_dict_new = req_dict_new['result'][0][req_name]
         expected_events = req_dict_old.get('TotalEvents', 0)
         if expected_events <= 0 or recalculate_total_events:
             expected_events = self.get_expected_events_with_dict(req_dict_new)
