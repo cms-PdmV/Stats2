@@ -1,13 +1,12 @@
 import logging
 from database import Database
-from utils import make_request_with_grid_cert, pick_attributes, get_request_list_from_req_mgr, get_updated_dataset_list_from_dbs
+from utils import make_request_with_grid_cert, pick_attributes
 import time
 
 
 class StatsUpdate():
     """
     Update events in the database
-    Statistics: updated 25962 requests in 23012.848s
     """
     def __init__(self):
         self.logger = logging.getLogger('logger')
@@ -17,113 +16,88 @@ class StatsUpdate():
         if name is not None:
             self.perform_update_one(name)
         else:
-            self.perform_update_since_last_seq()
+            self.perform_update_new()
 
     def perform_update_one(self, request_name):
         self.logger.info('Will update only one request: %s' % (request_name))
         self.update_one(request_name)
         self.recalculate_requests([request_name])
 
-    def perform_update_since_last_seq(self):
-        start_update = time.time()
-        last_seq = self.database.get_last_seq()
-        requests, last_seq = get_request_list_from_req_mgr(since=last_seq)
-        request_count = len(requests)
-        self.logger.info('Will process %d requests' % (request_count))
-        processed_count = 0
-        for request_name in requests:
+    def perform_update_new(self):
+        update_start = time.time()
+        changed_requests, last_seq = self.get_list_of_changed_requests()
+        self.logger.info('Will update %d requests' % (len(changed_requests)))
+        for request_name in changed_requests:
             self.update_one(request_name)
-            processed_count += 1
-            self.logger.info('Processed %d/%d' % (processed_count, request_count))
 
-        end_update = time.time()
-        self.logger.info('Updated %d requests in %.3fs\n' % (request_count,
-                                                             (end_update - start_update)))
-
-        updated_requests = set(requests)
-        start_recalculation = time.time()
-        last_dataset_modification_date = self.database.get_last_date()
-        updated_datasets = get_updated_dataset_list_from_dbs(since_timestamp=last_dataset_modification_date)
-        for dataset in updated_datasets:
-            dataset_requests = self.database.get_requests_with_dataset(dataset)
-            for dataset_request in dataset_requests:
-                updated_requests.add(dataset_request['_id'])
-                # self.logger.info('%s changed, will recalculate %s' % (dataset, dataset_request['_id']))
-
-        self.recalculate_requests(updated_requests)
-        end_recalculation = time.time()
-        self.logger.info('Recalculated %d requests in %.3fs\n' % (len(updated_requests),
-                                                                  (end_recalculation - start_recalculation)))
-
+        update_end = time.time()
+        requests_to_recalculate = set(changed_requests).union(set(self.get_list_of_requests_with_changed_datasets()))
+        self.recalculate_requests(requests_to_recalculate)
+        recalculation_end = time.time()
+        self.logger.info('Updated %d requests in %.3fs' % (len(changed_requests),
+                                                           (update_end - update_start)))
+        self.logger.info('Recalculated %d requests in %.3fs' % (len(requests_to_recalculate),
+                                                                (recalculation_end - update_end)))
         self.database.put_last_seq(last_seq)
-        self.database.put_last_date(start_update)
+        self.database.put_last_date(update_start)
+
+    def update_one(self, request_name):
+        self.logger.info('Updating %s' % (request_name))
+        update_start = time.time()
+        req_dict_old = self.database.get_request(request_name)
+        if req_dict_old is None:
+            req_dict = {'_id': request_name}
+            self.logger.info('Inserting %s' % (request_name))
+            self.database.insert_request_if_does_not_exist(req_dict)
+            req_dict_old = req_dict
+
+        req_dict = self.get_new_dict_from_reqmgr2(request_name)
+        req_dict['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
+        self.database.update_request(req_dict)
+        update_end = time.time()
+        self.logger.info('Updated %s in %.3fs' % (request_name, (update_end - update_start)))
 
     def recalculate_requests(self, request_names):
         for request_name in request_names:
+            recalculation_start = time.time()
             self.logger.info('Will recalculate %s' % (request_name))
             request = self.database.get_request(request_name)
             history_entry = self.get_new_history_entry(request)
-            added_history_entry = self.add_history_to_new_request(request, history_entry)
+            added_history_entry = self.add_history_entry_to_request(request, history_entry)
+            recalculation_end = time.time()
             if added_history_entry:
                 self.database.update_request(request)
+                self.logger.info('Recalculated %s in %fs' % (request_name, (recalculation_end - recalculation_start)))
             else:
                 self.logger.error('Did not add new history entry for %s' % (request_name))
 
-    def update_one(self, request_name):
-        self.logger.info('Processing %s' % (request_name))
-        start_update = time.time()
-        req_dict_old = self.database.get_request(request_name)
-
-        if req_dict_old is None:
-            req_dict_new = {'_id': request_name}
-            self.logger.info('Inserting %s' % (request_name))
-            self.database.insert_request_if_does_not_exist(req_dict_new)
-            req_dict_old = req_dict_new
-
-        req_dict_new = self.get_new_dict_from_reqmgr2(req_dict_old)
-        req_dict_new['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
-        req_dict_old = req_dict_new
-
-        self.database.update_request(req_dict_old)
-
-        end_update = time.time()
-        self.logger.info('Processed %s in %.3fs\n' % (request_name,
-                                                      (end_update - start_update)))
-
-    def get_new_dict_from_reqmgr2(self, req_dict_old):
-        req_name = req_dict_old['_id']
-        host_url = 'https://cmsweb.cern.ch'
-        query_url = '/couchdb/reqmgr_workload_cache/%s' % (req_name)
-
-        req_dict_new = make_request_with_grid_cert(host_url, query_url)
-        expected_events = req_dict_old.get('TotalEvents', 0)
-        expected_events = self.get_expected_events_with_dict(req_dict_new)
-
-        req_dict_new = pick_attributes(req_dict_new, ['AcquisitionEra',
-                                                      'Campaign',
-                                                      'InputDataset',
-                                                      'Memory',
-                                                      'OutputDatasets',
-                                                      'PrepID',
-                                                      'RequestName',
-                                                      'RequestPriority',
-                                                      'RequestTransition',
-                                                      'RequestType',
-                                                      'SizePerEvent',
-                                                      'TimePerEvent'])
-        req_dict_new['RequestTransition'] = [{'Status': tr['Status'],
-                                              'UpdateTime': tr['UpdateTime']} for tr in req_dict_new['RequestTransition']]
-        req_dict_new['_id'] = req_name
-        req_dict_new['TotalEvents'] = expected_events
-        req_dict_new['OutputDatasets'] = self.sort_datasets(req_dict_new['OutputDatasets'])
-        req_dict_new['EventNumberHistory'] = []
-
-        return req_dict_new
+    def get_new_dict_from_reqmgr2(self, request_name):
+        query_url = '/couchdb/reqmgr_workload_cache/%s' % (request_name)
+        req_dict = make_request_with_grid_cert(query_url)
+        expected_events = self.get_expected_events_with_dict(req_dict)
+        req_dict = pick_attributes(req_dict, ['AcquisitionEra',
+                                              'Campaign',
+                                              'InputDataset',
+                                              'Memory',
+                                              'OutputDatasets',
+                                              'PrepID',
+                                              'RequestName',
+                                              'RequestPriority',
+                                              'RequestTransition',
+                                              'RequestType',
+                                              'SizePerEvent',
+                                              'TimePerEvent'])
+        req_dict['RequestTransition'] = [{'Status': tr['Status'],
+                                          'UpdateTime': tr['UpdateTime']} for tr in req_dict['RequestTransition']]
+        req_dict['_id'] = request_name
+        req_dict['TotalEvents'] = expected_events
+        req_dict['OutputDatasets'] = self.sort_datasets(req_dict['OutputDatasets'])
+        req_dict['EventNumberHistory'] = []
+        return req_dict
 
     def get_event_count_from_dbs(self, dataset_name):
-        host_url = 'https://cmsweb.cern.ch'
         query_url = '/dbs/prod/global/DBSReader/filesummaries?dataset=%s' % (dataset_name)
-        filesummaries = make_request_with_grid_cert(host_url, query_url)
+        filesummaries = make_request_with_grid_cert(query_url)
         if len(filesummaries) == 0:
             return 0
 
@@ -149,7 +123,7 @@ class StatsUpdate():
 
         return history_entry
 
-    def add_history_to_new_request(self, req_dict, history_entry):
+    def add_history_entry_to_request(self, req_dict, history_entry):
         if req_dict['EventNumberHistory'] is not None and len(req_dict['EventNumberHistory']) > 0:
             last_history_entry = req_dict['EventNumberHistory'][-1:][0]
 
@@ -197,11 +171,9 @@ class StatsUpdate():
             elif 'Task1' in req_dict and 'RequestNumEvents' in req_dict['Task1']:
                 return int(req_dict['Task1']['RequestNumEvents'])
         else:
-            # self.logger.info('Resubmission %s, will get TotalInputEvents' % (req_dict['_id']))
             prep_id = req_dict['PrepID']
-            host_url = 'https://cmsweb.cern.ch'
             query_url = '/reqmgr2/data/request?mask=TotalInputEvents&mask=RequestType&prep_id=%s' % (prep_id)
-            ret = make_request_with_grid_cert(host_url, query_url)
+            ret = make_request_with_grid_cert(query_url)
             ret = ret['result'][0]
             for r in ret:
                 if ret[r]['RequestType'].lower() != 'resubmission' and ret[r]['TotalInputEvents'] is not None:
@@ -240,3 +212,37 @@ class StatsUpdate():
 
         dataset_list = sorted(dataset_list, key=tierLevel)
         return dataset_list
+
+    def get_list_of_changed_requests(self):
+        last_seq = self.database.get_last_seq()
+        query_url = '/couchdb/reqmgr_workload_cache/_changes?since=%d' % (last_seq)
+        self.logger.info('Getting the list of all requests since %d from %s' % (last_seq, query_url))
+        response = make_request_with_grid_cert(query_url)
+        last_seq = int(response['last_seq'])
+        req_list = response['results']
+        req_list = [req['id'] for req in req_list]
+        req_list = list(filter(lambda x: '_design' not in x, req_list))
+        self.logger.info('Got %d requests' % (len(req_list)))
+        return req_list, last_seq
+
+    def get_updated_dataset_list_from_dbs(self, since_timestamp=0):
+        query_url = '/dbs/prod/global/DBSReader/datasets?min_ldate=%d' % (since_timestamp)
+        self.logger.info('Getting the list of modified datasets since %d from %s' % (since_timestamp, query_url))
+        dataset_list = make_request_with_grid_cert(query_url)
+        dataset_list = [dataset['dataset'] for dataset in dataset_list]
+        self.logger.info('Got %d datasets' % (len(dataset_list)))
+        return dataset_list
+
+    def get_list_of_requests_with_changed_datasets(self):
+        self.logger.info('Will get list of changed datasets')
+        requests = []
+        last_dataset_modification_date = self.database.get_last_date()
+        updated_datasets = self.get_updated_dataset_list_from_dbs(since_timestamp=last_dataset_modification_date)
+        self.logger.info('Will find if any of changed datasets belong to requests in database')
+        for dataset in updated_datasets:
+            dataset_requests = self.database.get_requests_with_dataset(dataset)
+            for dataset_request in dataset_requests:
+                requests.append(dataset_request['_id'])
+
+        self.logger.info('Found %d requests for changed datasets' % (len(requests)))
+        return requests
