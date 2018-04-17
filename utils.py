@@ -2,6 +2,7 @@ import json
 import logging
 from connection_wrapper import ConnectionWrapper
 from logging import handlers
+import time
 
 
 __connection_wrappers = {}
@@ -22,6 +23,19 @@ def get_request_list_from_req_mgr(since=0):
     req_list = list(filter(lambda x: '_design' not in x, req_list))
 
     return req_list, last_seq
+
+
+def get_updated_dataset_list_from_dbs(since_timestamp=0):
+    logger = logging.getLogger('logger')
+    host_url = 'https://cmsweb.cern.ch'
+    query_url = '/dbs/prod/global/DBSReader/datasets?min_ldate=%d' % (since_timestamp)
+
+    logger.info('Getting the list of modified datasets since %d from %s' % (since_timestamp, host_url + query_url))
+    dataset_list = make_request_with_grid_cert(host_url, query_url)
+    logger.info('Got %d datasets' % (len(dataset_list)))
+    dataset_list = [dataset['dataset'] for dataset in dataset_list]
+
+    return dataset_list
 
 
 def make_request_with_grid_cert(host_url, query_url):
