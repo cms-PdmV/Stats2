@@ -28,6 +28,7 @@
             height: 10px;
             font-size: 0;
             overflow: hidden;
+            display: inline-block;
         }
         </style>
         <title>Stats2</title>
@@ -39,7 +40,7 @@
             <li>Total requests: {{ total_requests }}.</li>
             <li><a href="http://instance3:8080/job/Stats2Update/">Jenkins</a></li>
             {% if page != -1 %}
-            <li>Page: {{ page }}. {% if page > 0 %}<a href="/{{ page - 1 }}">Previous page</a>{% endif %} <a href="/{{ page + 1 }}">Next page</a></li>
+            <li>Page: {{ page }}. {% if page > 0 %}<a href="/{{ page - 1 }}?{{ query }}">Previous page</a>{% endif %} <a href="/{{ page + 1 }}?{{ query }}">Next page</a></li>
             {% endif %}
         </ul>
         <table class="table" style="font-size: 0.75em">
@@ -48,13 +49,14 @@
                 <th>Expected events</th>
                 <th>Open/Done</th>
                 <th>PrepID</th>
-                <th>Datasets</th>
+                <th>Campaign</th>
+                <th>Output Datasets</th>
                 <th>Type</th>
                 <th>Links</th>
             </tr>
             {% for request in requests %}
                 <tr>
-                    <td><a href="/?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
+                    <td><a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
                     <td>{{ request.TotalEvents }}</td>
                     <td>
                     {% set lastDataset = request.OutputDatasets | last %}
@@ -71,10 +73,25 @@
                         </div>
                     {% endif %}
                     </td>
-                    <td><a href="/?prepid={{ request.PrepID }}">{{ request.PrepID }}</td>
+                    <td><a href="/0?prepid={{ request.PrepID }}">{{ request.PrepID }}</td>
+                    <td><a href="/0?campaign={{ request.Campaign }}">{{ request.Campaign }}</td>
                     <td>
                         {% for dataset in request.OutputDatasets %}
-                            <a href="/?dataset={{ dataset }}">{{ dataset }}</a>&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">DatasetInStats</a><br>
+                            <a href="/0?dataset={{ dataset }}">{{ dataset }}</a>&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">DatasetInStats</a>
+                            <!--
+                            {% set lastHistory = request.EventNumberHistory | last %}
+                            {% if lastHistory %}
+                                {% set open = lastHistory.Datasets[dataset].OpenEvents %}
+                                {% set done = lastHistory.Datasets[dataset].DoneEvents %}
+                                {% set openPercent = open / request.TotalEvents * 100.0 %}
+                                {% set donePercent = done / request.TotalEvents * 100.0 %}
+                                <div class="gray-bar"><div style="width: {{ donePercent }}%;" class="blue-bar"></div><div style="width: {{ openPercent }}%;" class="orange-bar"></div>
+                                </div>
+                                {{ openPercent | round(2) }}%/{{ donePercent | round(2) }}%
+                                <br>
+                            {% endif %}
+                            <hr>
+                            -->
                         {% endfor %}
                     </td>
                     <td>{{ request.RequestType }}</td>
