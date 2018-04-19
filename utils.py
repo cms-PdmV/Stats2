@@ -5,7 +5,8 @@ from logging import handlers
 
 
 __connection_wrappers = {}
-__LOG_FORMAT = '[%(asctime)s][%(filename)s:%(lineno)d][%(levelname)s] %(message)s'
+# __LOG_FORMAT = '[%(asctime)s][%(filename)s:%(lineno)d][%(levelname)s] %(message)s'
+__LOG_FORMAT = '[%(asctime)s][%(levelname)s] %(message)s'
 
 
 def make_request_with_grid_cert(query_url):

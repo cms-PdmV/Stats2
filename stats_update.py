@@ -26,19 +26,28 @@ class StatsUpdate():
     def perform_update_new(self):
         update_start = time.time()
         changed_requests, last_seq = self.get_list_of_changed_requests()
+        initial_update = self.database.get_count_of_requests() == 0
         self.logger.info('Will update %d requests' % (len(changed_requests)))
         for request_name in changed_requests:
-            self.update_one(request_name)
+            try:
+                self.update_one(request_name)
+            except Exception as e:
+                self.logger.error('Exception while updating %s:%s' % (request_name, str(e)))
 
         update_end = time.time()
-        requests_to_recalculate = set(changed_requests).union(set(self.get_list_of_requests_with_changed_datasets()))
+        self.database.put_last_seq(last_seq)
+        if initial_update:
+            self.logger.info('Will update event count for all requests because all of them are new')
+            requests_to_recalculate = set(changed_requests)
+        else:
+            requests_to_recalculate = set(changed_requests).union(set(self.get_list_of_requests_with_changed_datasets()))
+
         self.recalculate_requests(requests_to_recalculate)
         recalculation_end = time.time()
         self.logger.info('Updated %d requests in %.3fs' % (len(changed_requests),
                                                            (update_end - update_start)))
-        self.logger.info('Recalculated %d requests in %.3fs' % (len(requests_to_recalculate),
-                                                                (recalculation_end - update_end)))
-        self.database.put_last_seq(last_seq)
+        self.logger.info('Updated open/done events for %d requests in %.3fs' % (len(requests_to_recalculate),
+                                                                                (recalculation_end - update_end)))
         self.database.put_last_date(update_start)
 
     def update_one(self, request_name):
@@ -59,15 +68,15 @@ class StatsUpdate():
 
     def recalculate_requests(self, request_names):
         for request_name in request_names:
-            recalculation_start = time.time()
-            self.logger.info('Will recalculate %s' % (request_name))
+            recalc_start = time.time()
+            self.logger.info('Will update open/done events for %s' % (request_name))
             request = self.database.get_request(request_name)
             history_entry = self.get_new_history_entry(request)
             added_history_entry = self.add_history_entry_to_request(request, history_entry)
-            recalculation_end = time.time()
+            recalc_end = time.time()
             if added_history_entry:
                 self.database.update_request(request)
-                self.logger.info('Recalculated %s in %fs' % (request_name, (recalculation_end - recalculation_start)))
+                self.logger.info('Updated open/done events for %s in %fs' % (request_name, (recalc_end - recalc_start)))
             else:
                 self.logger.error('Did not add new history entry for %s' % (request_name))
 
@@ -88,7 +97,7 @@ class StatsUpdate():
                                               'SizePerEvent',
                                               'TimePerEvent'])
         req_dict['RequestTransition'] = [{'Status': tr['Status'],
-                                          'UpdateTime': tr['UpdateTime']} for tr in req_dict['RequestTransition']]
+                                          'UpdateTime': tr['UpdateTime']} for tr in req_dict.get('RequestTransition', [])]
         req_dict['_id'] = request_name
         req_dict['TotalEvents'] = expected_events
         req_dict['OutputDatasets'] = self.sort_datasets(req_dict['OutputDatasets'])
@@ -166,18 +175,22 @@ class StatsUpdate():
                 if 'TotalInputEvents' in req_dict:
                     return int(f * req_dict['TotalInputEvents'])
 
-            if 'RequestNumEvents' in req_dict:
+            if 'RequestNumEvents' in req_dict and req_dict['RequestNumEvents'] is not None:
                 return int(req_dict['RequestNumEvents'])
             elif 'Task1' in req_dict and 'RequestNumEvents' in req_dict['Task1']:
                 return int(req_dict['Task1']['RequestNumEvents'])
+            elif 'Step1' in req_dict and 'RequestNumEvents' in req_dict['Step1']:
+                return int(req_dict['Step1']['RequestNumEvents'])
         else:
             prep_id = req_dict['PrepID']
             query_url = '/reqmgr2/data/request?mask=TotalInputEvents&mask=RequestType&prep_id=%s' % (prep_id)
             ret = make_request_with_grid_cert(query_url)
-            ret = ret['result'][0]
-            for r in ret:
-                if ret[r]['RequestType'].lower() != 'resubmission' and ret[r]['TotalInputEvents'] is not None:
-                    return int(f * ret[r]['TotalInputEvents'])
+            ret = ret['result']
+            if len(ret) > 0:
+                ret = ret[0]
+                for r in ret:
+                    if ret[r]['RequestType'].lower() != 'resubmission' and ret[r]['TotalInputEvents'] is not None:
+                        return int(f * ret[r]['TotalInputEvents'])
 
         self.logger.error('%s does not have total events!' % (req_dict['_id']))
         return -1
@@ -220,6 +233,7 @@ class StatsUpdate():
         response = make_request_with_grid_cert(query_url)
         last_seq = int(response['last_seq'])
         req_list = response['results']
+        req_list = list(filter(lambda x: not x.get('deleted', False), req_list))
         req_list = [req['id'] for req in req_list]
         req_list = list(filter(lambda x: '_design' not in x, req_list))
         self.logger.info('Got %d requests' % (len(req_list)))
@@ -235,14 +249,15 @@ class StatsUpdate():
 
     def get_list_of_requests_with_changed_datasets(self):
         self.logger.info('Will get list of changed datasets')
-        requests = []
+        requests = set()
         last_dataset_modification_date = self.database.get_last_date()
         updated_datasets = self.get_updated_dataset_list_from_dbs(since_timestamp=last_dataset_modification_date)
         self.logger.info('Will find if any of changed datasets belong to requests in database')
         for dataset in updated_datasets:
             dataset_requests = self.database.get_requests_with_dataset(dataset)
+            self.logger.info('%d requests contain %s' % (len(dataset_requests), dataset))
             for dataset_request in dataset_requests:
-                requests.append(dataset_request['_id'])
+                requests.add(dataset_request['_id'])
 
         self.logger.info('Found %d requests for changed datasets' % (len(requests)))
         return requests

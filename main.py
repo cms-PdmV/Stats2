@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request
 from flask_restful import Api
 from database import Database
 from utils import setup_console_logging
@@ -28,14 +28,7 @@ def index(page=0):
         else:
             requests = database.query(page=page)
 
-    return render_template('index.html', requests=requests, page=page)
-
-
-@app.route('/update/<string:request_name>')
-def update(request_name):
-    from stats_update import StatsUpdate
-    StatsUpdate().perform_update(name=request_name)
-    return redirect("/?request_name=" + request_name, code=302)
+    return render_template('index.html', requests=requests, page=page, total_requests=database.get_count_of_requests())
 
 
 def run_flask():

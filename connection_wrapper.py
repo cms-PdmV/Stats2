@@ -14,8 +14,8 @@ class ConnectionWrapper():
     def init_connection(self, url):
         return http.client.HTTPSConnection(url,
                                            port=443,
-                                           cert_file='/afs/cern.ch/user/j/jrumsevi/private/user.crt.pem',
-                                           key_file='/afs/cern.ch/user/j/jrumsevi/private/user.key.pem')
+                                           cert_file='/home/jrumsevi/user.crt.pem',
+                                           key_file='/home/jrumsevi/user.key.pem')
 
     def refresh_connection(self, url):
         logger = logging.getLogger('logger')

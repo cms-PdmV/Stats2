@@ -43,7 +43,7 @@ class Database:
         else:
             return None
 
-    def query(self, query_dict=None, page=0, page_size=100):
+    def query(self, query_dict=None, page=0, page_size=25):
         table = self.stats_db['request']
         if query_dict is not None:
             requests = table.find(query_dict)
@@ -68,7 +68,7 @@ class Database:
         last_seq = list(table.find({'_id': 'last_seq'}))
 
         if len(last_seq) < 1:
-            return 3539600
+            return 3000000
         else:
             return last_seq[0]['last_seq']
 
@@ -81,9 +81,12 @@ class Database:
         last_seq = list(table.find({'_id': 'dataset_timestamp'}))
 
         if len(last_seq) < 1:
-            return 1515064800
+            return 0
         else:
             return last_seq[0]['timestamp']
+
+    def get_count_of_requests(self):
+        return self.stats_db['request'].count()
 
     def clear_database(self):
         self.stats_db.request.drop()

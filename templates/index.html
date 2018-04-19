@@ -30,9 +30,18 @@
             overflow: hidden;
         }
         </style>
+        <title>Stats2</title>
+        <link rel="shortcut icon" type="image/x-icon" href="https://png.icons8.com/metro/64/data-backup">
     </head>
     <body>
         <h1 style="margin: 10px;"><a style="text-decoration: none;" href="/">Stats<sup>2</sup></a></h1>
+        <ul>
+            <li>Total requests: {{ total_requests }}.</li>
+            <li><a href="http://instance3:8080/job/Stats2Update/">Jenkins</a></li>
+            {% if page != -1 %}
+            <li>Page: {{ page }}. {% if page > 0 %}<a href="/{{ page - 1 }}">Previous page</a>{% endif %} <a href="/{{ page + 1 }}">Next page</a></li>
+            {% endif %}
+        </ul>
         <table class="table" style="font-size: 0.75em">
             <tr>
                 <th>Request name</th>
@@ -70,15 +79,11 @@
                     </td>
                     <td>{{ request.RequestType }}</td>
                     <td>
-                        <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID }}">pMp</a><br>
-                        <a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a><br>
+                        <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">pMp</a><br>
                         <a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2</a>
                     </td>
                 </tr>
             {% endfor %}
         </table>
-        {% if page != -1 %}
-            <span style="margin: 10px;">Current page is {{ page }}. {% if page > 0 %}<a href="/{{ page - 1 }}">Previous page</a>{% endif %} <a href="/{{ page + 1 }}">Next page</a></span>
-        {% endif %}
     </body>
 </html>
