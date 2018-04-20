@@ -57,10 +57,17 @@
             {% for request in requests %}
                 <tr>
                     <td><a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
-                    <td>{{ request.TotalEvents }}</td>
+                    <td>
+                        {% if request.TotalEvents != -1 %}
+                            {{ request.TotalEvents }}
+                        {% else %}
+                            No data
+                        {% endif %}
+
+                    </td>
                     <td>
                     {% set lastDataset = request.OutputDatasets | last %}
-                    {% if request.EventNumberHistory and lastDataset %}
+                    {% if request.TotalEvents != -1 and request.EventNumberHistory and lastDataset %}
                         {% set lastHistory = request.EventNumberHistory | last %}
                         {% set open = lastHistory.Datasets[lastDataset].OpenEvents %}
                         {% set done = lastHistory.Datasets[lastDataset].DoneEvents %}
