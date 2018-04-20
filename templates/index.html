@@ -63,7 +63,15 @@
                     <td><a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
                     <td>
                         {% if request.TotalEvents != -1 %}
-                            {{ request.TotalEvents }}
+                            {% if request.TotalEventsEqual == 'equal' %}
+                                <span title="Number is the same in Stats and Stats2" style="color:green">{{ request.TotalEvents }}</span>
+                            {% elif request.TotalEventsEqual == 'not_equal' %}
+                                <span title="Number is different in Stats and Stats2" style="color:red">{{ request.TotalEvents }}<br>Stats {{ request.TotalEventsStats }}</span>
+                            {% elif request.TotalEventsEqual == 'not_found' %}
+                                <span title="Cannot find request in Stats" style="color:cyan">{{ request.TotalEvents }}</span>
+                            {% else %}
+                                {{ request.TotalEvents }}
+                            {% endif %}
                         {% else %}
                             <span style="color:#FF0000"><b>No data</b></span>
                         {% endif %}
@@ -78,6 +86,7 @@
                         {% set openPercent = open / request.TotalEvents * 100.0 %}
                         {% set donePercent = done / request.TotalEvents * 100.0 %}
                         {{ openPercent | round(2) }}%/{{ donePercent | round(2) }}%
+                        {% if request.TotalEventsEqual %}(Stats: {{ request.OldCompletion }}%){% endif %}
                         <div class="gray-bar"><!--
                          --><div style="width: {{ donePercent }}%;" class="blue-bar"></div><!--
                          --><div style="width: {{ openPercent }}%;" class="orange-bar"></div>
