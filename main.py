@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 from flask_restful import Api
 from database import Database
 from utils import setup_console_logging
+from stats_update import StatsUpdate
 
 app = Flask(__name__)
 api = Api(app)
@@ -33,6 +34,12 @@ def index(page=0):
                            page=page,
                            total_requests=database.get_count_of_requests(),
                            query=request.query_string.decode('utf-8'))
+
+
+@app.route('/update/<string:request_name>')
+def update(request_name):
+    StatsUpdate().perform_update(name=request_name)
+    return redirect("/0?request_name=" + request_name, code=302)
 
 
 def run_flask():

@@ -1,5 +1,6 @@
 import http.client
 import logging
+import os
 
 
 class ConnectionWrapper():
@@ -10,12 +11,18 @@ class ConnectionWrapper():
         self.connection = None
         self.connection_attempts = 3
         self.wmagenturl = host.replace('https://', '').replace('http://', '')
+        self.cert_file = os.getenv('USERCRT', None)
+        self.key_file = os.getenv('USERKEY', None)
 
     def init_connection(self, url):
+        if self.cert_file is None or self.key_file is None:
+            raise Exception('Missing USERCRT or USERKEY environment variables')
+            return None
+
         return http.client.HTTPSConnection(url,
                                            port=443,
-                                           cert_file='/home/jrumsevi/user.crt.pem',
-                                           key_file='/home/jrumsevi/user.key.pem')
+                                           cert_file=self.cert_file,
+                                           key_file=self.key_file)
 
     def refresh_connection(self, url):
         logger = logging.getLogger('logger')
