@@ -38,9 +38,13 @@
         <h1 style="margin: 10px;"><a style="text-decoration: none;" href="/">Stats<sup>2</sup></a></h1>
         <ul>
             <li>Total requests in Stats<sup>2</sup>: {{ total_requests }}.</li>
-            <li><a href="http://instance3:8080/job/Stats2Update/">Jenkins</a></li>
+            <li><a href="http://instance3:8080/job/Stats2Update/">Jenkins update page</a></li>
             {% if page != -1 %}
-            <li>Page: {{ page }}. {% if page > 0 %}<a href="/{{ page - 1 }}?{{ query }}">Previous page</a>{% endif %} <a href="/{{ page + 1 }}?{{ query }}">Next page</a></li>
+            <li>
+                Page: {{ page }}.
+                {% if page > 0 %}<a href="/{{ page - 1 }}?{{ query }}">Previous page</a>{% endif %}
+                {% if requests | count > 0 %}<a href="/{{ page + 1 }}?{{ query }}">Next page</a>{% endif %}
+            </li>
             {% endif %}
         </ul>
         <table class="table" style="font-size: 0.75em">
@@ -84,14 +88,15 @@
                     <td><a href="/0?campaign={{ request.Campaign }}">{{ request.Campaign }}</td>
                     <td>
                         {% for dataset in request.OutputDatasets %}
-                            <a href="/0?dataset={{ dataset }}">{{ dataset }}</a>&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">DatasetInStats</a>
+                            {% if dataset == lastDataset %}<b>{% endif %}<a href="/0?dataset={{ dataset }}">{{ dataset }}</a>{% if dataset == lastDataset %}</b>{% endif %}&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">DatasetInStats</a>
+                            <br>
                         {% endfor %}
                     </td>
                     <td>{{ request.RequestType }}</td>
                     <td>
-                        <a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a>
+                        <a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a><br>
                         <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a><br>
-                        <a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a>
+                        <a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a><br>
                         <a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a>
                     </td>
                 </tr>
