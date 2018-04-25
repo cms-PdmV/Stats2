@@ -35,13 +35,8 @@ class Database:
         table = self.stats_db['request']
         return table.count()
 
-    def get_all_requests(self):
-        table = self.stats_db['request']
-        return list(table.find())
-
     def get_request(self, request_name):
-        table = self.stats_db['request']
-        requests = list(table.find({'_id': request_name}))
+        requests = self.query({'_id': request_name})
         if len(requests) > 0:
             return requests[0]
         else:
@@ -58,10 +53,7 @@ class Database:
         return list(requests)
 
     def get_requests_with_dataset(self, dataset):
-        table = self.stats_db['request']
-        requests = table.find({'OutputDatasets': dataset})
-
-        return list(requests)
+        return self.query({'OutputDatasets': dataset})
 
     def put_last_seq(self, last_seq):
         table = self.stats_db['timestamps']
@@ -88,9 +80,6 @@ class Database:
             return 0
         else:
             return last_seq[0]['timestamp']
-
-    def get_count_of_requests(self):
-        return self.stats_db['request'].count()
 
     def get_count_of_requests_without_history(self):
         return self.stats_db['request'].find({

@@ -55,7 +55,7 @@ def index(page=0):
     return render_template('index.html',
                            requests=requests,
                            page=page,
-                           total_requests=database.get_count_of_requests(),
+                           total_requests=database.get_request_count(),
                            requests_without_history=database.get_count_of_requests_without_history(),
                            query=request.query_string.decode('utf-8'))
 

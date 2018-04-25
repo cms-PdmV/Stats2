@@ -221,6 +221,7 @@ class StatsUpdate():
 
             if not needs_append:
                 return False
+
         else:
             req_dict['EventNumberHistory'] = []
 
@@ -250,6 +251,7 @@ class StatsUpdate():
                 return int(req_dict['Task1']['RequestNumEvents'])
             elif 'Step1' in req_dict and 'RequestNumEvents' in req_dict['Step1']:
                 return int(req_dict['Step1']['RequestNumEvents'])
+
         else:
             prep_id = req_dict['PrepID']
             query_url = '/reqmgr2/data/request?mask=TotalInputEvents&mask=RequestType&prep_id=%s' % (prep_id)
