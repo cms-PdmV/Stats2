@@ -92,6 +92,11 @@ class Database:
     def get_count_of_requests(self):
         return self.stats_db['request'].count()
 
+    def get_count_of_requests_without_history(self):
+        return self.stats_db['request'].find({
+            "$or": [{"EventNumberHistory": {"$exists": 0}}, {"EventNumberHistory": {"$eq": []}}]
+        }).count()
+
     def clear_database(self):
         self.stats_db.request.drop()
         self.stats_db.timestamps.drop()

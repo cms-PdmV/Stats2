@@ -38,6 +38,7 @@
         <h1 style="margin: 10px;"><a style="text-decoration: none;" href="/">Stats<sup>2</sup></a></h1>
         <ul>
             <li>Total requests in Stats<sup>2</sup>: {{ total_requests }}.</li>
+            <li>Requests without history: {{ requests_without_history }}.</li>
             <li><a href="http://instance3:8080/job/Stats2Update/">Jenkins update page</a></li>
         </ul>
         <table class="table" style="font-size: 0.75em">
@@ -100,6 +101,7 @@
                         <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a><br>
                         <a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a><br>
                         <a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a>
+                        <a href="/view_json/{{ request.RequestName }}">View&nbsp;JSON</a>
                     </td>
                 </tr>
             {% endfor %}

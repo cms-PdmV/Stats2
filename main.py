@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, make_response
 from flask_restful import Api
 from database import Database
 from utils import setup_console_logging, make_simple_request
 from stats_update import StatsUpdate
+import json
 
 app = Flask(__name__)
 api = Api(app)
@@ -55,13 +56,40 @@ def index(page=0):
                            requests=requests,
                            page=page,
                            total_requests=database.get_count_of_requests(),
+                           requests_without_history=database.get_count_of_requests_without_history(),
                            query=request.query_string.decode('utf-8'))
 
 
 @app.route('/update/<string:request_name>')
 def update(request_name):
-    StatsUpdate().perform_update(name=request_name)
+    StatsUpdate().perform_update(request_name=request_name)
     return redirect("/0?request_name=" + request_name, code=302)
+
+
+@app.route('/get/<string:request_name>')
+def get_one(request_name):
+    database = Database()
+    request = database.get_request(request_name)
+    if request is None:
+        response = make_response({}, 404)
+    else:
+        response = make_response(json.dumps(request), 200)
+
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+
+@app.route('/view_json/<string:request_name>')
+def get_nice_json(request_name):
+    database = Database()
+    request = database.get_request(request_name)
+    if request is None:
+        response = make_response({}, 404)
+    else:
+        response = make_response(json.dumps(request, indent=4), 200)
+
+    response.headers['Content-Type'] = 'application/json'
+    return response
 
 
 def run_flask():
