@@ -39,13 +39,6 @@
         <ul>
             <li>Total requests in Stats<sup>2</sup>: {{ total_requests }}.</li>
             <li><a href="http://instance3:8080/job/Stats2Update/">Jenkins update page</a></li>
-            {% if page != -1 %}
-            <li>
-                Page: {{ page }}.
-                {% if page > 0 %}<a href="/{{ page - 1 }}?{{ query }}">Previous page</a>{% endif %}
-                {% if requests | count > 0 %}<a href="/{{ page + 1 }}?{{ query }}">Next page</a>{% endif %}
-            </li>
-            {% endif %}
         </ul>
         <table class="table" style="font-size: 0.75em">
             <tr>
@@ -66,7 +59,7 @@
                             {% if request.TotalEventsEqual == 'equal' %}
                                 <span title="Number is the same in Stats and Stats2" style="color:green">{{ request.TotalEvents }}</span>
                             {% elif request.TotalEventsEqual == 'not_equal' %}
-                                <span title="Number is different in Stats and Stats2" style="color:red">{{ request.TotalEvents }}<br>Stats {{ request.TotalEventsStats }}</span>
+                                <span title="Number is different in Stats and Stats2" style="color:red">{{ request.TotalEvents }}<br>Stats&nbsp;{{ request.TotalEventsStats }}</span>
                             {% elif request.TotalEventsEqual == 'not_found' %}
                                 <span title="Cannot find request in Stats" style="color:cyan">{{ request.TotalEvents }}</span>
                             {% else %}
@@ -79,7 +72,7 @@
                     </td>
                     <td>
                     {% set lastDataset = request.OutputDatasets | last %}
-                    {% if request.TotalEvents != -1 and request.EventNumberHistory and lastDataset %}
+                    {% if request.TotalEvents > 0 and request.EventNumberHistory and lastDataset %}
                         {% set lastHistory = request.EventNumberHistory | last %}
                         {% set open = lastHistory.Datasets[lastDataset].OpenEvents %}
                         {% set done = lastHistory.Datasets[lastDataset].DoneEvents %}
@@ -111,5 +104,10 @@
                 </tr>
             {% endfor %}
         </table>
+            {% if page != -1 %}
+                Page: {{ page }}.
+                {% if page > 0 %}<a href="/{{ page - 1 }}?{{ query }}">Previous page</a>{% endif %}
+                {% if requests | count > 0 %}<a href="/{{ page + 1 }}?{{ query }}">Next page</a>{% endif %}
+            {% endif %}
     </body>
 </html>

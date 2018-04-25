@@ -23,6 +23,10 @@ class Database:
 
         return inserted_id
 
+    def delete_request(self, request):
+        table = self.stats_db['request']
+        table.delete_one({'_id': request})
+
     def update_request(self, request):
         requests_table = self.stats_db['request']
         requests_table.replace_one({'_id': request['_id']}, request)
@@ -43,7 +47,7 @@ class Database:
         else:
             return None
 
-    def query(self, query_dict=None, page=0, page_size=50):
+    def query(self, query_dict=None, page=0, page_size=200):
         table = self.stats_db['request']
         if query_dict is not None:
             requests = table.find(query_dict)
@@ -68,7 +72,7 @@ class Database:
         last_seq = list(table.find({'_id': 'last_seq'}))
 
         if len(last_seq) < 1:
-            return 3000000
+            return 0
         else:
             return last_seq[0]['last_seq']
 

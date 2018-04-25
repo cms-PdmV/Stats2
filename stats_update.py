@@ -11,6 +11,15 @@ class StatsUpdate():
     """
     Update events in the database
     """
+
+    __SKIPPABLE_STATUS = set(["rejected",
+                              "aborted",
+                              "failed",
+                              "rejected-archived",
+                              "aborted-archived",
+                              "failed-archived",
+                              "aborted-completed"])
+
     def __init__(self):
         self.logger = logging.getLogger('logger')
         self.database = Database()
@@ -24,12 +33,19 @@ class StatsUpdate():
     def perform_update_one(self, request_name):
         self.logger.info('Will update only one request: %s' % (request_name))
         self.update_one(request_name)
-        self.recalculate_requests([request_name])
+        self.recalculate_one(request_name)
 
     def perform_update_new(self):
         update_start = time.time()
-        changed_requests, last_seq = self.get_list_of_changed_requests()
+        changed_requests, deleted_requests, last_seq = self.get_list_of_changed_requests()
         initial_update = self.database.get_count_of_requests() == 0
+        self.logger.info('Will delete %d requests' % (len(deleted_requests)))
+        for request_name in deleted_requests:
+            try:
+                self.delete_one(request_name)
+            except Exception as e:
+                self.logger.error('Exception while deleting %s:%s' % (request_name, str(e)))
+
         self.logger.info('Will update %d requests' % (len(changed_requests)))
         for request_name in changed_requests:
             try:
@@ -45,43 +61,59 @@ class StatsUpdate():
         else:
             requests_to_recalculate = set(changed_requests).union(set(self.get_list_of_requests_with_changed_datasets()))
 
-        self.recalculate_requests(requests_to_recalculate)
+        for request_name in requests_to_recalculate:
+            try:
+                self.recalculate_one(request_name)
+            except Exception as e:
+                self.logger.error('Exception while recalculating %s:%s' % (request_name, str(e)))
+
         recalculation_end = time.time()
-        self.logger.info('Updated %d requests in %.3fs' % (len(changed_requests),
-                                                           (update_end - update_start)))
+        self.database.put_last_date(update_start)
+        self.logger.info('Updated  and deleted %d/%d requests in %.3fs' % (len(changed_requests), len(deleted_requests),
+                                                                           (update_end - update_start)))
         self.logger.info('Updated open/done events for %d requests in %.3fs' % (len(requests_to_recalculate),
                                                                                 (recalculation_end - update_end)))
-        self.database.put_last_date(update_start)
 
     def update_one(self, request_name):
         self.logger.info('Updating %s' % (request_name))
         update_start = time.time()
+        req_dict = self.get_new_dict_from_reqmgr2(request_name)
+        req_status = req_dict.get('RequestStatus', '')
+        if req_status is None or req_status in __SKIPPABLE_STATUS:
+            self.logger.info('Skipping and deleting %s because it\'s status is %s' % (request_name, req_status))
+            self.database.delete_request(request_name)
+            return
+
         req_dict_old = self.database.get_request(request_name)
         if req_dict_old is None:
-            req_dict = {'_id': request_name}
+            req_dict_old = {'_id': request_name}
             self.logger.info('Inserting %s' % (request_name))
-            self.database.insert_request_if_does_not_exist(req_dict)
-            req_dict_old = req_dict
+            self.database.insert_request_if_does_not_exist(req_dict_old)
 
-        req_dict = self.get_new_dict_from_reqmgr2(request_name)
         req_dict['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
         self.database.update_request(req_dict)
         update_end = time.time()
         self.logger.info('Updated %s in %.3fs' % (request_name, (update_end - update_start)))
 
-    def recalculate_requests(self, request_names):
-        for request_name in request_names:
-            recalc_start = time.time()
-            self.logger.info('Will update open/done events for %s' % (request_name))
-            request = self.database.get_request(request_name)
-            history_entry = self.get_new_history_entry(request)
-            added_history_entry = self.add_history_entry_to_request(request, history_entry)
-            recalc_end = time.time()
-            if added_history_entry:
-                self.database.update_request(request)
-                self.logger.info('Updated open/done events for %s in %fs' % (request_name, (recalc_end - recalc_start)))
-            else:
-                self.logger.error('Did not add new history entry for %s' % (request_name))
+    def delete_one(self, request_name):
+        self.logger.info('Deleting %s' % (request_name))
+        delete_start = time.time()
+        self.database.delete_request(request_name)
+        delete_end = time.time()
+        self.logger.info('Deleted %s in %.3fs' % (request_name, (delete_end - delete_start)))
+
+    def recalculate_one(self, request_name):
+        recalc_start = time.time()
+        self.logger.info('Will update open/done events for %s' % (request_name))
+        request = self.database.get_request(request_name)
+        history_entry = self.get_new_history_entry(request)
+        added_history_entry = self.add_history_entry_to_request(request, history_entry)
+        recalc_end = time.time()
+        if added_history_entry:
+            self.database.update_request(request)
+            self.logger.info('Updated open/done events for %s in %fs' % (request_name, (recalc_end - recalc_start)))
+        else:
+            self.logger.error('Did not add new history entry for %s' % (request_name))
 
     def get_new_dict_from_reqmgr2(self, request_name):
         query_url = '/couchdb/reqmgr_workload_cache/%s' % (request_name)
@@ -236,11 +268,14 @@ class StatsUpdate():
         response = make_request_with_grid_cert(query_url)
         last_seq = int(response['last_seq'])
         req_list = response['results']
-        req_list = list(filter(lambda x: not x.get('deleted', False), req_list))
-        req_list = [req['id'] for req in req_list]
-        req_list = list(filter(lambda x: '_design' not in x, req_list))
-        self.logger.info('Got %d requests' % (len(req_list)))
-        return req_list, last_seq
+        changed_req_list = list(filter(lambda x: not x.get('deleted', False), req_list))
+        changed_req_list = [req['id'] for req in changed_req_list]
+        changed_req_list = list(filter(lambda x: '_design' not in x, changed_req_list))
+        deleted_req_list = list(filter(lambda x: x.get('deleted', False), req_list))
+        deleted_req_list = [req['id'] for req in deleted_req_list]
+        deleted_req_list = list(filter(lambda x: '_design' not in x, deleted_req_list))
+        self.logger.info('Got %d updated requests. Got %d deleted requests.' % (len(changed_req_list), len(deleted_req_list)))
+        return changed_req_list, deleted_req_list, last_seq
 
     def get_updated_dataset_list_from_dbs(self, since_timestamp=0):
         query_url = '/dbs/prod/global/DBSReader/datasets?min_ldate=%d' % (since_timestamp)
