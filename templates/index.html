@@ -38,29 +38,36 @@
         <h1 style="margin: 10px;"><a style="text-decoration: none;" href="/">Stats<sup>2</sup></a></h1>
         <ul>
             <li>Total requests in Stats<sup>2</sup>: {{ total_requests }}.</li>
-            <li>Requests with and without history: {{ total_requests - requests_without_history }}/{{ requests_without_history }}.</li>
             <li><a href="http://instance3:8080/job/Stats2Update/">Jenkins update page</a></li>
+            <li>{{ rss | safe }}</li>
         </ul>
         <table class="table" style="font-size: 0.75em">
             <tr>
                 <th>Request name</th>
+                <th>Links</th>
                 <th>Expected events</th>
                 <th>Open/Done</th>
                 <th>PrepID</th>
                 <th>Campaign</th>
                 <th>Output Datasets</th>
                 <th>Type</th>
-                <th>Links</th>
             </tr>
             {% for request in requests %}
                 <tr>
                     <td><a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
                     <td>
+                        <a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a><br>
+                        <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a><br>
+                        <a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a><br>
+                        <a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a>
+                        <a href="/view_json/{{ request.RequestName }}">View&nbsp;JSON</a>
+                    </td>
+                    <td>
                         {% if request.TotalEvents != -1 %}
                             {% if request.TotalEventsEqual == 'equal' %}
                                 <span title="Number is the same in Stats and Stats2" style="color:green">{{ request.TotalEvents }}</span>
                             {% elif request.TotalEventsEqual == 'not_equal' %}
-                                <span title="Number is different in Stats and Stats2" style="color:red">{{ request.TotalEvents }}<br>Stats&nbsp;{{ request.TotalEventsStats }}</span>
+                                <span title="Number is different in Stats and Stats2" style="color:red">Stats<sup>2</sup>&nbsp;{{ request.TotalEvents }}<br>Stats&nbsp;{{ request.TotalEventsStats }}</span>
                             {% elif request.TotalEventsEqual == 'not_found' %}
                                 <span title="Cannot find request in Stats" style="color:cyan">{{ request.TotalEvents }}</span>
                             {% else %}
@@ -79,8 +86,8 @@
                         {% set done = lastHistory.Datasets[lastDataset].DoneEvents %}
                         {% set openPercent = open / request.TotalEvents * 100.0 %}
                         {% set donePercent = done / request.TotalEvents * 100.0 %}
-                        {{ openPercent | round(2) }}%/{{ donePercent | round(2) }}%
-                        {% if request.TotalEventsEqual %}(Stats: {{ request.OldCompletion }}%){% endif %}
+                        Open:&nbsp;{{ openPercent | round(2) }}%<br>Done:&nbsp;{{ donePercent | round(2) }}%
+                        {% if request.TotalEventsEqual %}<br>OldStats:&nbsp;{{ request.OldCompletion }}%{% endif %}
                         <div class="gray-bar"><!--
                          --><div style="width: {{ donePercent }}%;" class="blue-bar"></div><!--
                          --><div style="width: {{ openPercent }}%;" class="orange-bar"></div>
@@ -96,13 +103,6 @@
                         {% endfor %}
                     </td>
                     <td>{{ request.RequestType }}</td>
-                    <td>
-                        <a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a><br>
-                        <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a><br>
-                        <a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a><br>
-                        <a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a>
-                        <a href="/view_json/{{ request.RequestName }}">View&nbsp;JSON</a>
-                    </td>
                 </tr>
             {% endfor %}
         </table>

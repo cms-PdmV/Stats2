@@ -42,6 +42,11 @@ class Database:
         else:
             return None
 
+    def get_all_requests(self):
+        table = self.stats_db['request']
+        requests = table.find()
+        return list(requests)
+
     def query(self, query_dict=None, page=0, page_size=200):
         table = self.stats_db['request']
         if query_dict is not None:

@@ -50,7 +50,7 @@ class StatsUpdate():
         """
         update_start = time.time()
         changed_requests, deleted_requests, last_seq = self.get_list_of_changed_requests()
-        initial_update = self.database.get_count_of_requests() == 0
+        initial_update = self.database.get_request_count() == 0
         self.logger.info('Will delete %d requests' % (len(deleted_requests)))
         for request_name in deleted_requests:
             try:

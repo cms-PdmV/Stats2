@@ -4,6 +4,8 @@ from database import Database
 from utils import setup_console_logging, make_simple_request
 from stats_update import StatsUpdate
 import json
+import xml.etree.ElementTree as ET
+
 
 app = Flask(__name__)
 api = Api(app)
@@ -14,7 +16,7 @@ def check_with_old_stats(requests):
     Delete this if Stats2 is used as prod service
     """
     for req in requests:
-        stats_url = "http://vocms074:5984/stats/%s" % req['RequestName']
+        stats_url = "http://vocms074:5984/stats/%s" % req['_id']
         try:
             stats_req = make_simple_request(stats_url)
             req['OldCompletion'] = stats_req['pdmv_completion_in_DAS']
@@ -25,6 +27,18 @@ def check_with_old_stats(requests):
                 req['TotalEventsStats'] = stats_req['pdmv_expected_events']
         except:
             req['TotalEventsEqual'] = 'not_found'
+
+
+def get_jenkins_rss_feed():
+    import feedparser
+    f = feedparser.parse('http://instance3:8080/job/Stats2Update/rssAll')
+    html = 'Last updates:<ul>'
+    for e in f['entries'][:5]:
+        html += '<li><a href="%s">%s</a> (%s)</li>' % (e.get('link', ''), e.get('title', ''), e.get('published', '').replace('T', ' ').replace('Z', ''))
+
+    html += '</ul>'
+    return html
+
 
 
 @app.route('/')
@@ -56,14 +70,29 @@ def index(page=0):
                            requests=requests,
                            page=page,
                            total_requests=database.get_request_count(),
-                           requests_without_history=database.get_count_of_requests_without_history(),
-                           query=request.query_string.decode('utf-8'))
+                           query=request.query_string.decode('utf-8'),
+                           rss=get_jenkins_rss_feed())
 
 
 @app.route('/update/<string:request_name>')
 def update(request_name):
     StatsUpdate().perform_update(request_name=request_name)
     return redirect("/0?request_name=" + request_name, code=302)
+
+
+@app.route('/missing')
+def missing():
+    missing_requests = []
+    database = Database()
+    all_docs_url = 'http://vocms074:5984/stats/_all_docs'
+    all_docs = make_simple_request(all_docs_url)['rows']
+    for stats_doc in all_docs:
+        if database.get_request(stats_doc['id']) is None:
+            missing_requests.append(stats_doc['id'])
+
+    response = make_response(json.dumps({'missing_requests_in_stats2': missing_requests}, indent=4), 200)
+    response.headers['Content-Type'] = 'application/json'
+    return response
 
 
 @app.route('/get/<string:request_name>')
