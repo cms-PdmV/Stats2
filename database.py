@@ -30,14 +30,13 @@ class Database:
         return self.requests_table.count()
 
     def get_request(self, request_name):
-        return self.requests_table.find_one({'_id': 'request_name'})
+        return self.requests_table.find_one({'_id': request_name})
 
     def query_requests(self, query_dict=None, page=0, page_size=200):
-        table = self.stats_db['request']
         if query_dict is not None:
-            requests = table.find(query_dict)
+            requests = self.requests_table.find(query_dict)
         else:
-            requests = table.find()
+            requests = self.requests_table.find()
 
         requests = requests.skip(page * page_size).limit(page_size)
         return list(requests)

@@ -31,7 +31,7 @@ def check_with_old_stats(requests):
 def get_jenkins_rss_feed():
     import feedparser
     f = feedparser.parse('http://instance3:8080/job/Stats2Update/rssAll')
-    html = 'Last updates:<ul>'
+    html = 'Last updates:<ul style="font-size: 0.75em">'
     for e in f['entries'][:5]:
         html += '<li><a href="%s">%s</a></li>' % (e.get('link', ''), e.get('title', ''))
 
@@ -50,7 +50,7 @@ def index(page=0):
     check = request.args.get('check')
 
     if request_name is not None:
-        requests = [database.query_requests(request_name)]
+        requests = [database.get_request(request_name)]
     else:
         if prepid is not None:
             requests = database.query_requests({'PrepID': prepid}, page)
