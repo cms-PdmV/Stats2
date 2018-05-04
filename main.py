@@ -4,7 +4,6 @@ from database import Database
 from utils import setup_console_logging, make_simple_request
 from stats_update import StatsUpdate
 import json
-import xml.etree.ElementTree as ET
 
 
 app = Flask(__name__)
@@ -34,11 +33,10 @@ def get_jenkins_rss_feed():
     f = feedparser.parse('http://instance3:8080/job/Stats2Update/rssAll')
     html = 'Last updates:<ul>'
     for e in f['entries'][:5]:
-        html += '<li><a href="%s">%s</a> (%s)</li>' % (e.get('link', ''), e.get('title', ''), e.get('published', '').replace('T', ' ').replace('Z', ''))
+        html += '<li><a href="%s">%s</a></li>' % (e.get('link', ''), e.get('title', ''))
 
     html += '</ul>'
     return html
-
 
 
 @app.route('/')
@@ -52,16 +50,16 @@ def index(page=0):
     check = request.args.get('check')
 
     if request_name is not None:
-        requests = [database.get_request(request_name)]
+        requests = [database.query_requests(request_name)]
     else:
         if prepid is not None:
-            requests = database.query({'PrepID': prepid}, page)
+            requests = database.query_requests({'PrepID': prepid}, page)
         elif dataset is not None:
-            requests = database.query({'OutputDatasets': dataset}, page)
+            requests = database.query_requests({'OutputDatasets': dataset}, page)
         elif campaign is not None:
-            requests = database.query({'Campaign': campaign}, page)
+            requests = database.query_requests({'Campaign': campaign}, page)
         else:
-            requests = database.query(page=page)
+            requests = database.query_requests(page=page)
 
     if check is not None:
         check_with_old_stats(requests)

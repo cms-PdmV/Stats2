@@ -51,6 +51,7 @@
                 <th>Campaign</th>
                 <th>Output Datasets</th>
                 <th>Type</th>
+                <th>Priority</th>
             </tr>
             {% for request in requests %}
                 <tr>
@@ -103,6 +104,7 @@
                         {% endfor %}
                     </td>
                     <td>{{ request.RequestType }}</td>
+                    <td>{{ request.RequestPriority }}</td>
                 </tr>
             {% endfor %}
         </table>

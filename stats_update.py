@@ -34,6 +34,8 @@ class StatsUpdate():
         else:
             self.perform_update_new()
 
+        self.logger.info('Requests after update %d' % (self.database.get_request_count()))
+
     def perform_update_one(self, request_name):
         """
         Perform update for specific request: fetch new dictionary from RequestManager
@@ -66,7 +68,6 @@ class StatsUpdate():
                 self.logger.error('Exception while updating %s:%s' % (request_name, str(e)))
 
         update_end = time.time()
-        self.database.put_last_seq(last_seq)
         if initial_update:
             self.logger.info('Will update event count for all requests because all of them are new')
             requests_to_recalculate = set(changed_requests)
@@ -80,7 +81,8 @@ class StatsUpdate():
                 self.logger.error('Exception while recalculating %s:%s' % (request_name, str(e)))
 
         recalculation_end = time.time()
-        self.database.put_last_date(update_start)
+        self.database.set_setting('last_reqmgr_sequence', int(last_seq))
+        self.database.set_setting('last_dbs_update_date', int(update_start))
         self.logger.info('Updated and deleted %d/%d requests in %.3fs' % (len(changed_requests), len(deleted_requests),
                                                                           (update_end - update_start)))
         self.logger.info('Updated open/done events for %d requests in %.3fs' % (len(requests_to_recalculate),
@@ -162,6 +164,7 @@ class StatsUpdate():
         req_dict['TotalEvents'] = expected_events
         req_dict['OutputDatasets'] = self.sort_datasets(req_dict['OutputDatasets'])
         req_dict['EventNumberHistory'] = []
+        req_dict['RequestPriority'] = int(req_dict.get('RequestPriority', 0))
         return req_dict
 
     def get_event_count_from_dbs(self, dataset_name):
@@ -301,7 +304,7 @@ class StatsUpdate():
         """
         Get list of requests that changed in RequestManager since last update.
         """
-        last_seq = self.database.get_last_seq()
+        last_seq = self.database.get_setting('last_reqmgr_sequence', 0)
         query_url = '/couchdb/reqmgr_workload_cache/_changes?since=%d' % (last_seq)
         self.logger.info('Getting the list of all requests since %d from %s' % (last_seq, query_url))
         response = make_request_with_grid_cert(query_url)
@@ -333,7 +336,7 @@ class StatsUpdate():
         """
         self.logger.info('Will get list of changed datasets')
         requests = set()
-        last_dataset_modification_date = self.database.get_last_date()
+        last_dataset_modification_date = self.database.get_setting('last_dbs_update_date', 0)
         updated_datasets = self.get_updated_dataset_list_from_dbs(since_timestamp=last_dataset_modification_date)
         self.logger.info('Will find if any of changed datasets belong to requests in database')
         for dataset in updated_datasets:

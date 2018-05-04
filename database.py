@@ -8,11 +8,8 @@ class Database:
         self.logger = logging.getLogger('logger')
         self.client = MongoClient('localhost', 27017)
         self.stats_db = self.client['stats']
-
-    def db_status(self):
-        db = self.client.admin
-        server_status_result = db.command('serverStatus')
-        return server_status_result
+        self.requests_table = self.stats_db['request']
+        self.settings_table = self.stats_db['settings']
 
     def insert_request_if_does_not_exist(self, request):
         requests_table = self.stats_db['request']
@@ -24,30 +21,18 @@ class Database:
         return inserted_id
 
     def delete_request(self, request):
-        table = self.stats_db['request']
-        table.delete_one({'_id': request})
+        self.requests_table.delete_one({'_id': request})
 
     def update_request(self, request):
-        requests_table = self.stats_db['request']
-        requests_table.replace_one({'_id': request['_id']}, request)
+        self.requests_table.replace_one({'_id': request['_id']}, request)
 
     def get_request_count(self):
-        table = self.stats_db['request']
-        return table.count()
+        return self.requests_table.count()
 
     def get_request(self, request_name):
-        requests = self.query({'_id': request_name})
-        if len(requests) > 0:
-            return requests[0]
-        else:
-            return None
+        return self.requests_table.find_one({'_id': 'request_name'})
 
-    def get_all_requests(self):
-        table = self.stats_db['request']
-        requests = table.find()
-        return list(requests)
-
-    def query(self, query_dict=None, page=0, page_size=200):
+    def query_requests(self, query_dict=None, page=0, page_size=200):
         table = self.stats_db['request']
         if query_dict is not None:
             requests = table.find(query_dict)
@@ -58,38 +43,19 @@ class Database:
         return list(requests)
 
     def get_requests_with_dataset(self, dataset):
-        return self.query({'OutputDatasets': dataset})
+        return self.query_requests({'OutputDatasets': dataset})
 
-    def put_last_seq(self, last_seq):
-        table = self.stats_db['timestamps']
-        table.replace_one({'_id': 'last_seq'}, {'last_seq': last_seq}, upsert=True)
+    def set_setting(self, setting_name, setting_value):
+        settings_dict = self.settings_table.find_one({'_id': 'all_settings'})
+        settings_dict[setting_name] = setting_value
+        self.settings_table.replace_one({'_id': 'all_settings'}, settings_dict, upsert=True)
 
-    def get_last_seq(self):
-        table = self.stats_db['timestamps']
-        last_seq = list(table.find({'_id': 'last_seq'}))
-
-        if len(last_seq) < 1:
-            return 0
+    def get_setting(self, setting_name, default_value):
+        all_settings = self.settings_table.find_one({'_id': 'all_settings'})
+        if all_settings is not None:
+            return all_settings.get(setting_name, default_value)
         else:
-            return last_seq[0]['last_seq']
-
-    def put_last_date(self, timestamp):
-        table = self.stats_db['timestamps']
-        table.replace_one({'_id': 'dataset_timestamp'}, {'timestamp': timestamp}, upsert=True)
-
-    def get_last_date(self):
-        table = self.stats_db['timestamps']
-        last_seq = list(table.find({'_id': 'dataset_timestamp'}))
-
-        if len(last_seq) < 1:
-            return 0
-        else:
-            return last_seq[0]['timestamp']
-
-    def get_count_of_requests_without_history(self):
-        return self.stats_db['request'].find({
-            "$or": [{"EventNumberHistory": {"$exists": 0}}, {"EventNumberHistory": {"$eq": []}}]
-        }).count()
+            return default_value
 
     def clear_database(self):
         self.stats_db.request.drop()
