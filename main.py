@@ -113,7 +113,7 @@ def get_nice_json(request_name):
     if request is None:
         response = make_response({}, 404)
     else:
-        response = make_response(json.dumps(request, indent=4), 200)
+        response = make_response(json.dumps(request, indent=4, sort_keys=True), 200)
 
     response.headers['Content-Type'] = 'application/json'
     return response
