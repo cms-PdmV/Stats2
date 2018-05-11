@@ -74,8 +74,10 @@
                         <a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a><br>
                         <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a><br>
                         <a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a><br>
-                        <a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a>
-                        <a href="/view_json/{{ request.RequestName }}">View&nbsp;JSON</a>
+                        <a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a><br>
+                        <a href="/view_json/{{ request.RequestName }}">View&nbsp;JSON</a><br>
+                        <a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&RN={{ request.RequestName }}">Request&nbsp;in&nbsp;Stats</a><br>
+
                     </td>
                     <td>
                         {% if request.TotalEvents != -1 %}
@@ -110,7 +112,7 @@
                     <td><a href="/0?campaign={{ request.Campaign }}">{{ request.Campaign }}</td>
                     <td>
                         {% for dataset in request.OutputDatasets %}
-                            {% if dataset == lastDataset %}<b>{% endif %}<a href="/0?dataset={{ dataset }}">{{ dataset }}</a>{% if dataset == lastDataset %}</b>{% endif %}&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">DatasetInStats</a>
+                            {% if dataset == lastDataset %}<b>{% endif %}<a href="/0?dataset={{ dataset }}">{{ dataset }}</a>{% if dataset == lastDataset %}</b>{% endif %}&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">Stats</a>&nbsp;<a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset }}">DAS</a>
                             <br>
                         {% endfor %}
                     </td>

@@ -190,8 +190,7 @@ class StatsUpdate():
 
         history_entry = {'Time': int(time.time()), 'Datasets': {}}
         for dataset_name in req_dict['OutputDatasets']:
-            output_dataset = req_dict['OutputDatasets'][-1:][0]
-            events = self.get_event_count_from_dbs(output_dataset)
+            events = self.get_event_count_from_dbs(dataset_name)
             if announced:
                 history_entry['Datasets'][dataset_name] = {'OpenEvents': 0,
                                                            'DoneEvents': events}
@@ -285,6 +284,8 @@ class StatsUpdate():
                              'ALCARECO',
                              'USER',
                              'RAW-RECO',
+                             'LHE',
+                             'GEN',
                              'GEN-SIM',
                              'SIM-RAW-RECO',
                              'AOD',

@@ -119,6 +119,31 @@ def get_nice_json(request_name):
     return response
 
 
+@app.route('/move_to_couch')
+def move_to_couch():
+    page = 0
+    requests = ['']
+    database = Database()
+    import urllib
+    import json
+    while len(requests) > 0:
+        requests = database.query_requests(None, page=page, page_size=10000)
+        print('Page ' + str(page))
+        page += 1
+        for request in requests:
+            try:
+                r = json.dumps(request)
+                # print(r)
+                req = urllib.request.Request('http://localhost:5984/request')
+                data = r.encode()
+                req.add_header("Content-Type", "application/json")
+                urllib.request.urlopen(req, data)
+            except:
+                pass
+
+    return 'OK'
+
+
 def run_flask():
     setup_console_logging()
     app.run(host='0.0.0.0',
