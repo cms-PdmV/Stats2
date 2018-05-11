@@ -50,7 +50,12 @@ def index(page=0):
     check = request.args.get('check')
 
     if request_name is not None:
-        requests = [database.get_request(request_name)]
+        req = database.get_request(request_name)
+        if req is not None:
+            requests = [req]
+        else:
+            requests = []
+
     else:
         if prepid is not None:
             requests = database.query_requests({'PrepID': prepid}, page)
