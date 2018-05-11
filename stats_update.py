@@ -96,11 +96,12 @@ class StatsUpdate():
         self.logger.info('Updating %s' % (request_name))
         update_start = time.time()
         req_dict = self.get_new_dict_from_reqmgr2(request_name)
-        req_status = req_dict.get('RequestStatus', '')
-        if req_status is None or req_status in self.__SKIPPABLE_STATUS:
-            self.logger.info('Skipping and deleting %s because it\'s status is %s' % (request_name, req_status))
-            self.database.delete_request(request_name)
-            return
+        req_transitions = req_dict.get('RequestTransition', [])
+        for req_transition in req_transitions:
+            if req_transition['Status'] in self.__SKIPPABLE_STATUS:
+                self.logger.info('Skipping and deleting %s because it\'s status is %s' % (request_name, req_transition['Status']))
+                self.database.delete_request(request_name)
+                return
 
         req_dict_old = self.database.get_request(request_name)
         if req_dict_old is None:
@@ -130,6 +131,10 @@ class StatsUpdate():
         recalc_start = time.time()
         self.logger.info('Will update open/done events for %s' % (request_name))
         request = self.database.get_request(request_name)
+        if request is None:
+            self.logger.warning('Request %s will not be recalculated because it\'s no longer in database' % (request_name))
+            return
+
         history_entry = self.get_new_history_entry(request)
         added_history_entry = self.add_history_entry_to_request(request, history_entry)
         recalc_end = time.time()

@@ -98,7 +98,7 @@ def get_one(request_name):
     database = Database()
     request = database.get_request(request_name)
     if request is None:
-        response = make_response({}, 404)
+        response = make_response("{}", 404)
     else:
         response = make_response(json.dumps(request), 200)
 
@@ -111,7 +111,7 @@ def get_nice_json(request_name):
     database = Database()
     request = database.get_request(request_name)
     if request is None:
-        response = make_response({}, 404)
+        response = make_response("{}", 404)
     else:
         response = make_response(json.dumps(request, indent=4, sort_keys=True), 200)
 
