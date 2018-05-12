@@ -359,6 +359,9 @@ class StatsUpdate():
     def steal_history_from_old_stats(self, req_dict):
         from time import strptime, mktime
         self.logger.info('Stealing history for %s from old Stats... ;)' % (req_dict['_id']))
+        if 'EventNumberHistory' not in req_dict:
+            req_dict['EventNumberHistory'] = []
+
         try:
             stats_url = "http://vocms074:5984/stats/%s" % (req_dict['_id'])
             stats_req = make_simple_request(stats_url)

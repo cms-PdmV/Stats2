@@ -1,6 +1,6 @@
 import json
 import logging
-import urllib
+from urllib.request import Request, urlopen
 from connection_wrapper import ConnectionWrapper
 from logging import handlers
 
@@ -22,8 +22,8 @@ def make_request_with_grid_cert(query_url):
 
 
 def make_simple_request(url):
-    req = urllib.request.Request(url)
-    return json.loads(urllib.request.urlopen(req).read().decode('utf-8'))
+    req = Request(url)
+    return json.loads(urlopen(req).read().decode('utf-8'))
 
 
 def pick_attributes(old_dict, attributes, skip_non_existing=True):
