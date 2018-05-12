@@ -4,7 +4,7 @@ import argparse
 import json
 from utils import setup_console_logging
 from database import Database
-from utils import make_request_with_grid_cert, pick_attributes
+from utils import make_request_with_grid_cert, pick_attributes, make_simple_request
 
 
 class StatsUpdate():
@@ -99,7 +99,8 @@ class StatsUpdate():
         req_transitions = req_dict.get('RequestTransition', [])
         for req_transition in req_transitions:
             if req_transition['Status'] in self.__SKIPPABLE_STATUS:
-                self.logger.info('Skipping and deleting %s because it\'s status is %s' % (request_name, req_transition['Status']))
+                self.logger.info('Skipping and deleting %s because it\'s status is %s' % (request_name,
+                                                                                          req_transition['Status']))
                 self.database.delete_request(request_name)
                 return
 
@@ -108,6 +109,7 @@ class StatsUpdate():
             req_dict_old = {'_id': request_name}
             self.logger.info('Inserting %s' % (request_name))
             self.database.insert_request_if_does_not_exist(req_dict_old)
+            self.steal_history_from_old_stats(req_dict_old)
 
         req_dict['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
         self.database.update_request(req_dict)
@@ -293,10 +295,10 @@ class StatsUpdate():
                              'GEN',
                              'GEN-SIM',
                              'SIM-RAW-RECO',
-                             'AOD',
                              'DIGI-RECO',
                              'SIM-RECO',
-                             'RECO']
+                             'RECO',
+                             'AOD']
             for (p, t) in enumerate(tier_priority):
                 if t in tier:
                     return p
@@ -353,6 +355,29 @@ class StatsUpdate():
 
         self.logger.info('Found %d requests for changed datasets' % (len(requests)))
         return requests
+
+    def steal_history_from_old_stats(self, req_dict):
+        from time import strptime, mktime
+        self.logger.info('Stealing history for %s from old Stats... ;)' % (req_dict['_id']))
+        try:
+            stats_url = "http://vocms074:5984/stats/%s" % (req_dict['_id'])
+            stats_req = make_simple_request(stats_url)
+            stats_history = stats_req.get('pdmv_monitor_history', [])
+            for stats_history_entry in stats_history:
+                timestamp = mktime(strptime(stats_history_entry['pdmv_monitor_time']))
+                new_history_entry = {'Time': int(timestamp), 'Datasets': {}}
+                for dataset, events_dict in stats_history_entry.get('pdmv_dataset_statuses', {}).items():
+                    new_history_entry['Datasets'][dataset] = {'OpenEvents': int(events_dict['pdmv_open_evts_in_DAS']),
+                                                              'DoneEvents': int(events_dict['pdmv_evts_in_DAS'])}
+
+                self.add_history_entry_to_request(req_dict, new_history_entry)
+
+            def sort_by_time(history_entry):
+                return history_entry['Time']
+
+            req_dict['EventNumberHistory'].sort(key=sort_by_time)
+        except Exception as ex:
+            self.logger.error(ex)
 
 
 def main():
