@@ -112,6 +112,7 @@ class StatsUpdate():
             self.steal_history_from_old_stats(req_dict_old)
 
         req_dict['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
+        req_dict['OutputDatasets'] = self.sort_datasets(req_dict['OutputDatasets'])
         self.database.update_request(req_dict)
         update_end = time.time()
         self.logger.info('Updated %s in %.3fs' % (request_name, (update_end - update_start)))
@@ -286,21 +287,71 @@ class StatsUpdate():
             tier = dataset.split('/')[-1:][0]
             # DQMIO priority is the lowest because it does not produce any events
             # and is used only for some statistical things
-            tier_priority = ['DQMIO',
-                             'DQM',
-                             'ALCARECO',
+            tier_priority = ['DAVE',
+                             'CRAP',
+                             'DBS3_DEPLOYMENT_TEST_TIER',
                              'USER',
+                             'FEVT',
+                             'RAW-HLT',
+                             'RAW-HLY',
+                             'HLY',
+                             'ALCARECO',
+                             'ALCAPROMPT',
+                             'HLT',
+                             'DQM',
+                             'DQMIO',
+                             'DQMROOT',
+                             'GEN-SIM-RECODEBUG',
+                             'GEN-SIM-DIGI-RECODEBUG',
+                             'GEN-SIM-RAWDEBUG',
+                             'GEN-SIM-RAW-HLTDEBUG',
+                             'GEN-SIM-RAW-HLTDEBUG-RECO',
+                             'GEN-SIM-RAW-HLTDEBUG-RECODEBUG',
+                             'GEN-SIM-DIGI-RAW-HLTDEBUG-RECO',
+                             'GEN-SIM-DIGI-RAW-HLTDEBUG',
+                             'GEN-SIM-DIGI-HLTDEBUG-RECO',
+                             'GEN-SIM-DIGI-HLTDEBUG',
+                             'FEVTDEBUGHLT',
+                             'GEN-RAWDEBUG',
+                             'RAWDEBUG',
+                             'RECODEBUG',
+                             'HLTDEBUG',
+                             'RAWRECOSIMHLT',
+                             'RAW-RECOSIMHLT',
+                             'RECOSIMHLT',
+                             'FEVTHLTALL',
+                             'PREMIXRAW',
+                             'PREMIX-RAW',
+                             'RAW',
                              'RAW-RECO',
                              'LHE',
                              'GEN',
+                             'GEN-RAW',
                              'GEN-SIM',
-                             'SIM-RAW-RECO',
+                             'SIM',
+                             'DIGI',
                              'DIGI-RECO',
-                             'SIM-RECO',
                              'RECO',
-                             'AOD']
+                             'RAWAODSIM',
+                             'AOD',
+                             'AODSIM',
+                             'MINIAOD',
+                             'MINIAODSIM',
+                             'NANOAOD',
+                             'NANOAODSIM',
+                             'NANOEDMAOD',
+                             'NANOEDMAODSIM',
+                             'GEN-SIM-RECO',
+                             'GEN-SIM-RAW',
+                             'GEN-SIM-RAW-HLT',
+                             'GEN-SIM-RAW-RECO',
+                             'GEN-SIM-DIGI',
+                             'GEN-SIM-DIGI-RECO',
+                             'GEN-SIM-DIGI-RAW',
+                             'GEN-SIM-DIGI-RAW-RECO']
+
             for (p, t) in enumerate(tier_priority):
-                if t in tier:
+                if t.upper() == tier:
                     return p
 
             return -1
