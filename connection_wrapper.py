@@ -14,6 +14,7 @@ class ConnectionWrapper():
         self.host_url = host.replace('https://', '').replace('http://', '')
         self.cert_file = os.getenv('USERCRT', None)
         self.key_file = os.getenv('USERKEY', None)
+        self.logger = logging.getLogger('logger')
 
     def init_connection(self, url):
         if self.cert_file is None or self.key_file is None:
@@ -26,8 +27,7 @@ class ConnectionWrapper():
                                            key_file=self.key_file)
 
     def refresh_connection(self, url):
-        logger = logging.getLogger('logger')
-        logger.info('Refreshing connection')
+        self.logger.info('Refreshing connection')
         self.connection = self.init_connection(url)
 
     def api(self, method, url, data):
