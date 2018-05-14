@@ -1,0 +1,56 @@
+td, th {
+  word-wrap: break-word;
+  max-width: 400px;
+}
+
+.open-bar {
+  background-color:#F39C12;
+  line-height:10px;
+  height: 10px;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.done-bar {
+  background-color:#26A65B;
+  line-height:10px;
+  height: 10px;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.gray-bar {
+  width: 100px;
+  background-color:#ADADAD;
+  line-height:10px;
+  height: 10px;
+  font-size: 0;
+  overflow: hidden;
+}
+
+.title {
+  color: #212529;
+  text-decoration: none;
+  margin: 10px;
+  font-size: 60px;
+  font-weight: 100;
+}
+
+.title:hover {
+  color: #212529;
+  text-decoration: none;
+}
+
+.footer {
+  width: 100%;
+  text-align: center;
+  padding: 10px;
+}
+
+.red {
+  color: red;
+}
+
+ul.no-bullets {
+  list-style: none;
+}

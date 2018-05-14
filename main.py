@@ -6,7 +6,9 @@ from stats_update import StatsUpdate
 import json
 
 
-app = Flask(__name__)
+app = Flask(__name__,
+            static_folder="./html/static",
+            template_folder="./html")
 api = Api(app)
 
 
@@ -18,7 +20,7 @@ def check_with_old_stats(requests):
         stats_url = "http://vocms074:5984/stats/%s" % req['_id']
         try:
             stats_req = make_simple_request(stats_url)
-            req['OldCompletion'] = stats_req['pdmv_completion_in_DAS']
+            req['OldCompletion'] = '%.2f' % (float(stats_req['pdmv_completion_in_DAS']))
             if stats_req['pdmv_expected_events'] == req['TotalEvents']:
                 req['TotalEventsEqual'] = 'equal'
             else:
@@ -28,29 +30,21 @@ def check_with_old_stats(requests):
             req['TotalEventsEqual'] = 'not_found'
 
 
-def get_jenkins_rss_feed():
-    import feedparser
-    f = feedparser.parse('http://instance3:8080/job/Stats2Update/rssAll')
-    html = 'Last updates:<ul style="font-size: 0.75em">'
-    for e in f['entries'][:5]:
-        html += '<li><a href="%s">%s</a></li>' % (e.get('link', ''), e.get('title', ''))
-
-    html += '</ul>'
-    return html
-
-
 @app.route('/')
 @app.route('/<int:page>')
-def index(page=0):
+def index(page=1):
     database = Database()
     prepid = request.args.get('prepid')
     dataset = request.args.get('dataset')
     campaign = request.args.get('campaign')
     request_name = request.args.get('request_name')
     check = request.args.get('check')
+    if page < 1:
+        page = 1
 
     if request_name is not None:
         req = database.get_request(request_name)
+        pages = [-1, 1, -1]
         if req is not None:
             requests = [req]
         else:
@@ -58,44 +52,46 @@ def index(page=0):
 
     else:
         if prepid is not None:
-            requests = database.query_requests({'PrepID': prepid}, page)
+            requests, left = database.query_requests({'PrepID': prepid}, page - 1)
         elif dataset is not None:
-            requests = database.query_requests({'OutputDatasets': dataset}, page)
+            requests, left = database.query_requests({'OutputDatasets': dataset}, page - 1)
         elif campaign is not None:
-            requests = database.query_requests({'Campaign': campaign}, page)
+            requests, left = database.query_requests({'Campaign': campaign}, page - 1)
         else:
-            requests = database.query_requests(page=page)
+            requests, left = database.query_requests(page=page - 1)
+
+        pages = [page - 1, page, page + 1 if left > 0 else -1]
 
     if check is not None:
         check_with_old_stats(requests)
 
+    for req in requests:
+        if req['TotalEvents'] > 0 and len(req['OutputDatasets']) > 0 and len(req['EventNumberHistory']) > 0:
+            last_dataset = req['OutputDatasets'][-1:][0]
+            last_history = req['EventNumberHistory'][-1:][0]
+            calculated_dataset = last_history['Datasets'][last_dataset]
+            open_events = calculated_dataset['OpenEvents']
+            done_events = calculated_dataset['DoneEvents']
+            total_events = req['TotalEvents']
+            req['OpenPercent'] = '%.2f' % (open_events / total_events * 100.0)
+            req['DonePercent'] = '%.2f' % (done_events / total_events * 100.0)
+            req['LastDataset'] = last_dataset
+        else:
+            req['OpenPercent'] = ''
+            req['DonePercent'] = ''
+            req['LastDataset'] = ''
+
     return render_template('index.html',
                            requests=requests,
-                           page=page,
+                           pages=pages,
                            total_requests=database.get_request_count(),
-                           query=request.query_string.decode('utf-8'),
-                           rss=get_jenkins_rss_feed())
+                           query=request.query_string.decode('utf-8'))
 
 
 @app.route('/update/<string:request_name>')
 def update(request_name):
     StatsUpdate().perform_update(request_name=request_name)
     return redirect("/0?request_name=" + request_name, code=302)
-
-
-@app.route('/missing')
-def missing():
-    missing_requests = []
-    database = Database()
-    all_docs_url = 'http://vocms074:5984/stats/_all_docs'
-    all_docs = make_simple_request(all_docs_url)['rows']
-    for stats_doc in all_docs:
-        if database.get_request(stats_doc['id']) is None:
-            missing_requests.append(stats_doc['id'])
-
-    response = make_response(json.dumps({'missing_requests_in_stats2': missing_requests}, indent=4), 200)
-    response.headers['Content-Type'] = 'application/json'
-    return response
 
 
 @app.route('/get/<string:request_name>')
@@ -122,31 +118,6 @@ def get_nice_json(request_name):
 
     response.headers['Content-Type'] = 'application/json'
     return response
-
-
-@app.route('/move_to_couch')
-def move_to_couch():
-    page = 0
-    requests = ['']
-    database = Database()
-    import urllib
-    import json
-    while len(requests) > 0:
-        requests = database.query_requests(None, page=page, page_size=10000)
-        print('Page ' + str(page))
-        page += 1
-        for request in requests:
-            try:
-                r = json.dumps(request)
-                # print(r)
-                req = urllib.request.Request('http://localhost:5984/request')
-                data = r.encode()
-                req.add_header("Content-Type", "application/json")
-                urllib.request.urlopen(req, data)
-            except:
-                pass
-
-    return 'OK'
 
 
 def run_flask():

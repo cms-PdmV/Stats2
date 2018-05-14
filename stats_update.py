@@ -287,14 +287,9 @@ class StatsUpdate():
             tier = dataset.split('/')[-1:][0]
             # DQMIO priority is the lowest because it does not produce any events
             # and is used only for some statistical things
-            tier_priority = ['DAVE',
-                             'CRAP',
-                             'DBS3_DEPLOYMENT_TEST_TIER',
-                             'USER',
+            tier_priority = ['USER',
                              'FEVT',
                              'RAW-HLT',
-                             'RAW-HLY',
-                             'HLY',
                              'ALCARECO',
                              'ALCAPROMPT',
                              'HLT',

@@ -2,6 +2,8 @@
 ## What is it?
 Stats2 takes list of requests from *RequestManager2* and stores smaller (not all attributes) copy of all requests. It also takes nuber of open/done events from *dbs* and collects history for each dataset in all requests.
 Main improvement over old Stats is that Stats2 fetch only changes since last update. As a result, updates take no more than few seconds and can be performed as frequently as desired.
+## No Javascript!
+Stats2 has 0 javascript. However, it uses Jinja2 templates a lot.
 ## Console usage
 Usually Stats2 should be viewed and controlled from web browser, but it  can be used as a python script as well:
 Update all requests:
@@ -59,11 +61,10 @@ sudo systemctl start mongod
 sudo pip3 install pymongo
 ```
 ### Install dependencies
-Install flask, flask_restful and feedparser
+Install flask and flask_restful
 ```
 sudo pip3 install flask
 sudo pip3 install flask_restful
-sudo pip3 install feedparser
 ```
 ### Clone Stats2
 ```

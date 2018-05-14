@@ -32,17 +32,22 @@ class Database:
     def get_request(self, request_name):
         return self.requests_table.find_one({'_id': request_name})
 
-    def query_requests(self, query_dict=None, page=0, page_size=200):
+    def query_requests(self, query_dict=None, page=0, page_size=100):
         if query_dict is not None:
             requests = self.requests_table.find(query_dict)
         else:
             requests = self.requests_table.find()
 
+        left = requests.count() - (page + 1) * page_size
+        if left < 0:
+            left = 0
+
         requests = requests.skip(page * page_size).limit(page_size)
-        return list(requests)
+        return list(requests), left
 
     def get_requests_with_dataset(self, dataset):
-        return self.query_requests({'OutputDatasets': dataset})
+        requests, _ = self.query_requests({'OutputDatasets': dataset})
+        return requests
 
     def set_setting(self, setting_name, setting_value):
         settings_dict = self.settings_table.find_one({'_id': 'all_settings'})

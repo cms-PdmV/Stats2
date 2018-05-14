@@ -1,0 +1,90 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="shortcut icon" type="image/x-icon" href="static/favicon.png">
+    <title>Stats2</title>
+  </head>
+  <body>
+    <a class="title" href="/">Stats<sup class="red">2</sup></a>
+    <ul>
+      <li>Total requests in Stats<sup class="red">2</sup>: {{ total_requests }}</li>
+      <li><a href="http://instance3:8080/job/Stats2Update/lastBuild/">Last Jenkins job</a></li>
+      <li><a href="https://github.com/justinasr/Stats2/tree/dev">GitHub</a></li>
+    </ul>
+    <table class="table" style="font-size: 12px">
+      <tr style="font-size: 14px">
+        <th>Request name</th>
+        <th>Links</th>
+        <th>Total/Open/Done</th>
+        <th>PrepID</th>
+        <th>Campaign</th>
+        <th>Output Datasets</th>
+      </tr>
+      {% for request in requests %}
+        <tr>
+          <td><a href="/1?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
+          <td>
+            <ul class="no-bullets">
+              <li><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a></li>
+              <li><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a></li>
+              <li><a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a></li>
+              <li><a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a></li>
+              <li><a href="/view_json/{{ request.RequestName }}">View&nbsp;JSON</a></li>
+              <li><a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&RN={{ request.RequestName }}">Request&nbsp;in&nbsp;Stats</a></li>
+              <li><a href="/1?request_name={{ request.RequestName }}&check=1">Check&nbsp;with&nbsp;Stats</a></li>
+            </ul>
+          </td>
+          <td>
+            <ul class="no-bullets">
+              {% if request.TotalEventsEqual %}
+                {% if request.TotalEventsEqual == 'equal' %}
+                  <li><span title="Number is the same in Stats and Stats2" style="color:green">Total:&nbsp;{{ request.TotalEvents }}</span></li>
+                {% elif request.TotalEventsEqual == 'not_equal' %}
+                  <li><span title="Number is different in Stats and Stats2" style="color:red">Total in Stats<sup>2</sup>&nbsp;{{ request.TotalEvents }}</span></li>
+                  <li><span title="Number is different in Stats and Stats2" style="color:red">Total in Stats&nbsp;{{ request.TotalEventsStats }}</span></li>
+                {% elif request.TotalEventsEqual == 'not_found' %}
+                  <li><span title="Cannot find request in Stats" style="color:cyan">Total:&nbsp;{{ request.TotalEvents }}</span></li>
+                {% endif %}
+                {% if request.OpenPercent == request.OldCompletion or request.DonePercent == request.OldCompletion %}
+                  <li><span title="Completion is the same in Stats and Stats2" style="color:green">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
+                {% else %}
+                  <li><span title="Completion is different in Stats and Stats2" style="color:red">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
+                {% endif %}
+              {% else %}
+                <li>Total:&nbsp;{{ request.TotalEvents }}</li>
+              {% endif %}
+              {% if request.DonePercent != '' %}
+                  <li>Open:&nbsp;{{ request.OpenPercent }}%</li>
+                  <li>Done:&nbsp;{{ request.DonePercent }}%</li>
+                  <li>
+                    <div class="gray-bar">
+                      <div style="width: {{ request.DonePercent }}%;" class="done-bar"></div>
+                      <div style="width: {{ request.OpenPercent }}%;" class="open-bar"></div>
+                    </div>
+                  </li>
+              {% endif %}
+            </ul>
+          </td>
+          <td><a href="/1?prepid={{ request.PrepID }}">{{ request.PrepID | replace("task_", "") }}</a></td>
+          <td><a href="/1?campaign={{ request.Campaign }}">{{ request.Campaign }}</a></td>
+          <td>
+            <ul class="no-bullets">
+              {% for dataset in request.OutputDatasets %}
+                <li>{% if dataset == request.LastDataset %}<b>{% endif %}<a href="/1?dataset={{ dataset }}">{{ dataset }}</a>{% if dataset == request.LastDataset %}</b>{% endif %}&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">Stats</a>&nbsp;<a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset }}">DAS</a></li>
+              {% endfor %}
+            </ul>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+    <div class="footer">
+      <ul class="pagination justify-content-center">
+        <li class="page-item {% if pages[0] < 1 %}disabled{% endif %}"><a class="page-link" href="/{{ pages[0] }}?{{ query }}">Previous</a></li>
+        <li class="page-item"><a class="page-link" href="#">{{ pages[1] }}</a></li>
+        <li class="page-item {% if pages[2] < 1 %}disabled{% endif %}"><a class="page-link" href="/{{ pages[2] }}?{{ query }}">Next</a></li>
+      </ul>
+    </div>
+  </body>
+</html>
