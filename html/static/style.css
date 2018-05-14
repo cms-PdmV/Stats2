@@ -48,7 +48,11 @@ td, th {
 }
 
 .red {
-  color: red;
+  color: #F22613;
+}
+
+.green {
+  color: #26A65B;
 }
 
 ul.no-bullets {

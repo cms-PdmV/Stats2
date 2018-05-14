@@ -40,17 +40,17 @@
             <ul class="no-bullets">
               {% if request.TotalEventsEqual %}
                 {% if request.TotalEventsEqual == 'equal' %}
-                  <li><span title="Number is the same in Stats and Stats2" style="color:green">Total:&nbsp;{{ request.TotalEvents }}</span></li>
+                  <li><span title="Number is the same in Stats and Stats2" class="green">Total:&nbsp;{{ request.TotalEvents }}</span></li>
                 {% elif request.TotalEventsEqual == 'not_equal' %}
-                  <li><span title="Number is different in Stats and Stats2" style="color:red">Total in Stats<sup>2</sup>&nbsp;{{ request.TotalEvents }}</span></li>
-                  <li><span title="Number is different in Stats and Stats2" style="color:red">Total in Stats&nbsp;{{ request.TotalEventsStats }}</span></li>
+                  <li><span title="Number is different in Stats and Stats2" class="red">Total&nbsp;in&nbsp;Stats<sup>2</sup>&nbsp;{{ request.TotalEvents }}</span></li>
+                  <li><span title="Number is different in Stats and Stats2" class="red">Total&nbsp;in&nbsp;Stats&nbsp;{{ request.TotalEventsStats }}</span></li>
                 {% elif request.TotalEventsEqual == 'not_found' %}
-                  <li><span title="Cannot find request in Stats" style="color:cyan">Total:&nbsp;{{ request.TotalEvents }}</span></li>
+                  <li><span title="Cannot find request in Stats" class="red">Total:&nbsp;{{ request.TotalEvents }}</span></li>
                 {% endif %}
                 {% if request.OpenPercent == request.OldCompletion or request.DonePercent == request.OldCompletion %}
-                  <li><span title="Completion is the same in Stats and Stats2" style="color:green">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
+                  <li><span title="Completion is the same in Stats and Stats2" class="green">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
                 {% else %}
-                  <li><span title="Completion is different in Stats and Stats2" style="color:red">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
+                  <li><span title="Completion is different in Stats and Stats2" class="red">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
                 {% endif %}
               {% else %}
                 <li>Total:&nbsp;{{ request.TotalEvents }}</li>

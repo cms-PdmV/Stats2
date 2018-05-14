@@ -12,13 +12,13 @@ class StatsUpdate():
     Update request info in Stats2 database.
     """
 
-    __SKIPPABLE_STATUS = set(["rejected",
-                              "aborted",
-                              "failed",
-                              "rejected-archived",
-                              "aborted-archived",
-                              "failed-archived",
-                              "aborted-completed"])
+    __SKIPPABLE_STATUS = set(['rejected',
+                              'aborted',
+                              'failed',
+                              'rejected-archived',
+                              'aborted-archived',
+                              'failed-archived',
+                              'aborted-completed'])
 
     def __init__(self):
         self.logger = logging.getLogger('logger')
