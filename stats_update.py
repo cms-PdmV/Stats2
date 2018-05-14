@@ -4,7 +4,7 @@ import argparse
 import json
 from utils import setup_console_logging
 from database import Database
-from utils import make_request_with_grid_cert, pick_attributes, make_simple_request
+from utils import make_cmsweb_request, pick_attributes, make_simple_request
 
 
 class StatsUpdate():
@@ -39,7 +39,7 @@ class StatsUpdate():
     def perform_update_one(self, request_name):
         """
         Perform update for specific request: fetch new dictionary from RequestManager
-        and update open/done event cound.info
+        and update event recalculation
         """
         self.logger.info('Will update only one request: %s' % (request_name))
         self.update_one(request_name)
@@ -48,7 +48,7 @@ class StatsUpdate():
     def perform_update_new(self):
         """
         Perform update for all requests that changed since last update and recalculate
-        open/done events for files that changed since last update.info
+        events for files that changed since last update
         """
         update_start = time.time()
         changed_requests, deleted_requests, last_seq = self.get_list_of_changed_requests()
@@ -68,6 +68,8 @@ class StatsUpdate():
                 self.logger.error('Exception while updating %s:%s' % (request_name, str(e)))
 
         update_end = time.time()
+        self.logger.info('Finished updating requests')
+        self.logger.info('Will update event count')
         if initial_update:
             self.logger.info('Will update event count for all requests because all of them are new')
             requests_to_recalculate = set(changed_requests)
@@ -85,8 +87,8 @@ class StatsUpdate():
         self.database.set_setting('last_dbs_update_date', int(update_start))
         self.logger.info('Updated and deleted %d/%d requests in %.3fs' % (len(changed_requests), len(deleted_requests),
                                                                           (update_end - update_start)))
-        self.logger.info('Updated open/done events for %d requests in %.3fs' % (len(requests_to_recalculate),
-                                                                                (recalculation_end - update_end)))
+        self.logger.info('Updated event count for %d requests in %.3fs' % (len(requests_to_recalculate),
+                                                                           (recalculation_end - update_end)))
 
     def update_one(self, request_name):
         """
@@ -129,13 +131,13 @@ class StatsUpdate():
 
     def recalculate_one(self, request_name):
         """
-        Action to update open/done events for request.
+        Action to update event count for request.
         """
         recalc_start = time.time()
-        self.logger.info('Will update open/done events for %s' % (request_name))
+        self.logger.info('Will update event count for %s' % (request_name))
         request = self.database.get_request(request_name)
         if request is None:
-            self.logger.warning('Request %s will not be recalculated because it\'s no longer in database' % (request_name))
+            self.logger.warning('Will not update %s event count because it\'s no longer in database' % (request_name))
             return
 
         history_entry = self.get_new_history_entry(request)
@@ -143,16 +145,16 @@ class StatsUpdate():
         recalc_end = time.time()
         if added_history_entry:
             self.database.update_request(request)
-            self.logger.info('Updated open/done events for %s in %fs' % (request_name, (recalc_end - recalc_start)))
+            self.logger.info('Updated event count for %s in %fs' % (request_name, (recalc_end - recalc_start)))
         else:
-            self.logger.error('Did not add new history entry for %s' % (request_name))
+            self.logger.info('Did not update event count for %s' % (request_name))
 
     def get_new_dict_from_reqmgr2(self, request_name):
         """
         Get request dictionary from RequestManager.
         """
-        query_url = '/couchdb/reqmgr_workload_cache/%s' % (request_name)
-        req_dict = make_request_with_grid_cert(query_url)
+        url = '/couchdb/reqmgr_workload_cache/%s' % (request_name)
+        req_dict = make_cmsweb_request(url)
         expected_events = self.get_expected_events_with_dict(req_dict)
         req_dict = pick_attributes(req_dict, ['AcquisitionEra',
                                               'Campaign',
@@ -180,62 +182,56 @@ class StatsUpdate():
         Get event count for specified dataset from DBS.
         """
         query_url = '/dbs/prod/global/DBSReader/filesummaries?dataset=%s' % (dataset_name)
-        filesummaries = make_request_with_grid_cert(query_url)
+        filesummaries = make_cmsweb_request(query_url)
         if len(filesummaries) == 0:
             return 0
 
         return int(filesummaries[0]['num_event'])
 
-    def get_new_history_entry(self, req_dict):
+    def get_new_history_entry(self, req_dict, depth=0):
         """
         Form a new history entry dictionary for given request.
         """
-        announced = False
-        for transition in req_dict['RequestTransition']:
-            if transition['Status'] == 'announced':
-                announced = True
-                break
+        output_datasets = req_dict.get('OutputDatasets', [])
+        output_datasets_set = set(output_datasets)
+        if len(output_datasets) == 0:
+            return None
 
         history_entry = {'Time': int(time.time()), 'Datasets': {}}
-        for dataset_name in req_dict['OutputDatasets']:
-            events = self.get_event_count_from_dbs(dataset_name)
-            if announced:
-                history_entry['Datasets'][dataset_name] = {'OpenEvents': 0,
-                                                           'DoneEvents': events}
-            else:
-                history_entry['Datasets'][dataset_name] = {'OpenEvents': events,
-                                                           'DoneEvents': 0}
+        dataset_list_url = '/dbs/prod/global/DBSReader/datasetlist'
+        dbs_dataset_list = make_cmsweb_request(dataset_list_url, {'dataset': output_datasets, 'detail': 1})
+        for dbs_dataset in dbs_dataset_list:
+            dataset_name = dbs_dataset['dataset']
+            history_entry['Datasets'][dataset_name] = {'Type': dbs_dataset['dataset_access_type'],
+                                                       'Events': self.get_event_count_from_dbs(dataset_name)}
+            output_datasets_set.remove(dataset_name)
+
+        for dataset in output_datasets_set:
+            history_entry['Datasets'][dataset] = {'Type': 'NONE',
+                                                  'Events': 0}
+
+        if len(history_entry['Datasets']) != len(output_datasets):
+            self.logger.error('Wrong number of datasets for %s, returning None' % (req_dict['_id']))
+            return None
 
         return history_entry
 
-    def add_history_entry_to_request(self, req_dict, history_entry):
+    def add_history_entry_to_request(self, req_dict, new_history_entry):
         """
         Add history entry to request if such entry does not exist.
         """
-        if req_dict['EventNumberHistory'] is not None and len(req_dict['EventNumberHistory']) > 0:
-            last_history_entry = req_dict['EventNumberHistory'][-1:][0]
+        if new_history_entry is None:
+            return False
 
-            needs_append = False
-            for dataset_name in history_entry['Datasets']:
-                if dataset_name not in last_history_entry['Datasets']:
-                    needs_append = True
-                    break
-
-                old_open = last_history_entry['Datasets'][dataset_name]['OpenEvents']
-                old_done = last_history_entry['Datasets'][dataset_name]['DoneEvents']
-                new_open = history_entry['Datasets'][dataset_name]['OpenEvents']
-                new_done = history_entry['Datasets'][dataset_name]['DoneEvents']
-                if old_open != new_open or old_done != new_done:
-                    needs_append = True
-                    break
-
-            if not needs_append:
+        new_dict_string = json.dumps(new_history_entry['Datasets'], sort_keys=True)
+        history_entries = req_dict['EventNumberHistory']
+        for history_entry in history_entries:
+            old_dict_string = json.dumps(history_entry['Datasets'], sort_keys=True)
+            if new_dict_string == old_dict_string:
                 return False
 
-        else:
-            req_dict['EventNumberHistory'] = []
-
-        req_dict['EventNumberHistory'].append(history_entry)
+        history_entries.append(new_history_entry)
+        # self.logger.info(json.dumps(history_entry, indent=2))
         return True
 
     def get_expected_events_with_dict(self, req_dict):
@@ -264,8 +260,8 @@ class StatsUpdate():
 
         else:
             prep_id = req_dict['PrepID']
-            query_url = '/reqmgr2/data/request?mask=TotalInputEvents&mask=RequestType&prep_id=%s' % (prep_id)
-            ret = make_request_with_grid_cert(query_url)
+            url = '/reqmgr2/data/request?mask=TotalInputEvents&mask=RequestType&prep_id=%s' % (prep_id)
+            ret = make_cmsweb_request(url)
             ret = ret['result']
             if len(ret) > 0:
                 ret = ret[0]
@@ -359,9 +355,9 @@ class StatsUpdate():
         Get list of requests that changed in RequestManager since last update.
         """
         last_seq = self.database.get_setting('last_reqmgr_sequence', 0)
-        query_url = '/couchdb/reqmgr_workload_cache/_changes?since=%d' % (last_seq)
-        self.logger.info('Getting the list of all requests since %d from %s' % (last_seq, query_url))
-        response = make_request_with_grid_cert(query_url)
+        url = '/couchdb/reqmgr_workload_cache/_changes?since=%d' % (last_seq)
+        self.logger.info('Getting the list of all requests since %d from %s' % (last_seq, url))
+        response = make_cmsweb_request(url)
         last_seq = int(response['last_seq'])
         req_list = response['results']
         changed_req_list = list(filter(lambda x: not x.get('deleted', False), req_list))
@@ -377,9 +373,9 @@ class StatsUpdate():
         """
         Get list of datasets that changed since last update.
         """
-        query_url = '/dbs/prod/global/DBSReader/datasets?min_ldate=%d' % (since_timestamp)
-        self.logger.info('Getting the list of modified datasets since %d from %s' % (since_timestamp, query_url))
-        dataset_list = make_request_with_grid_cert(query_url)
+        url = '/dbs/prod/global/DBSReader/datasets?min_ldate=%d' % (since_timestamp)
+        self.logger.info('Getting the list of modified datasets since %d from %s' % (since_timestamp, url))
+        dataset_list = make_cmsweb_request(url)
         dataset_list = [dataset['dataset'] for dataset in dataset_list]
         self.logger.info('Got %d datasets' % (len(dataset_list)))
         return dataset_list
@@ -416,8 +412,13 @@ class StatsUpdate():
                 timestamp = mktime(strptime(stats_history_entry['pdmv_monitor_time']))
                 new_history_entry = {'Time': int(timestamp), 'Datasets': {}}
                 for dataset, events_dict in stats_history_entry.get('pdmv_dataset_statuses', {}).items():
-                    new_history_entry['Datasets'][dataset] = {'OpenEvents': int(events_dict['pdmv_open_evts_in_DAS']),
-                                                              'DoneEvents': int(events_dict['pdmv_evts_in_DAS'])}
+                    type_in_stats = events_dict.get('pdmv_status_in_DAS', 'NONE')
+                    if not type_in_stats:
+                        type_in_stats = 'NONE'
+
+                    events_in_stats = int(events_dict.get('pdmv_evts_in_DAS', 0))
+                    new_history_entry['Datasets'][dataset] = {'Events': events_in_stats,
+                                                              'Type': type_in_stats}
 
                 self.add_history_entry_to_request(req_dict, new_history_entry)
 

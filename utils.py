@@ -10,15 +10,15 @@ __connection_wrappers = {}
 __LOG_FORMAT = '[%(asctime)s][%(levelname)s] %(message)s'
 
 
-def make_request_with_grid_cert(query_url):
+def make_cmsweb_request(query_url, data=None):
     host_url = 'https://cmsweb.cern.ch'
     connection_wrapper = __connection_wrappers.get(host_url)
     if connection_wrapper is None:
         connection_wrapper = ConnectionWrapper(host_url)
         __connection_wrappers[host_url] = connection_wrapper
 
-    response = connection_wrapper.api(query_url).decode('utf-8')
-    return json.loads(response)
+    response = connection_wrapper.api('GET' if data is None else 'POST', query_url, data)
+    return json.loads(response.decode('utf-8'))
 
 
 def make_simple_request(url):

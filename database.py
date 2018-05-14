@@ -8,13 +8,12 @@ class Database:
         self.logger = logging.getLogger('logger')
         self.client = MongoClient('localhost', 27017)
         self.stats_db = self.client['stats']
-        self.requests_table = self.stats_db['request']
+        self.requests_table = self.stats_db['requests']
         self.settings_table = self.stats_db['settings']
 
     def insert_request_if_does_not_exist(self, request):
-        requests_table = self.stats_db['request']
         try:
-            inserted_id = requests_table.insert_one(request).inserted_id
+            inserted_id = self.requests_table.insert_one(request).inserted_id
         except DuplicateKeyError:
             return None
 
@@ -51,6 +50,9 @@ class Database:
 
     def set_setting(self, setting_name, setting_value):
         settings_dict = self.settings_table.find_one({'_id': 'all_settings'})
+        if settings_dict is None:
+            settings_dict = {'_id': 'all_settings'}
+
         settings_dict[setting_name] = setting_value
         self.settings_table.replace_one({'_id': 'all_settings'}, settings_dict, upsert=True)
 
@@ -62,5 +64,5 @@ class Database:
             return default_value
 
     def clear_database(self):
-        self.stats_db.request.drop()
-        self.stats_db.timestamps.drop()
+        self.requests_table.remove()
+        self.settings_table.remove()

@@ -70,15 +70,16 @@ def index(page=1):
             last_dataset = req['OutputDatasets'][-1:][0]
             last_history = req['EventNumberHistory'][-1:][0]
             calculated_dataset = last_history['Datasets'][last_dataset]
-            open_events = calculated_dataset['OpenEvents']
-            done_events = calculated_dataset['DoneEvents']
+            done_events = calculated_dataset['Events']
+            dataset_type = calculated_dataset['Type']
             total_events = req['TotalEvents']
-            req['OpenPercent'] = '%.2f' % (open_events / total_events * 100.0)
             req['DonePercent'] = '%.2f' % (done_events / total_events * 100.0)
+            req['LastDatasetType'] = dataset_type
             req['LastDataset'] = last_dataset
         else:
-            req['OpenPercent'] = ''
-            req['DonePercent'] = ''
+            req['DonePercent'] = '0.00'
+            req['OpenPercent'] = '0.00'
+            req['LastDatasetType'] = 'NONE'
             req['LastDataset'] = ''
 
     return render_template('index.html',

@@ -57,4 +57,5 @@ td, th {
 
 ul.no-bullets {
   list-style: none;
+  padding-left: 0;
 }

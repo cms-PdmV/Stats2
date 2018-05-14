@@ -17,10 +17,10 @@
       <tr style="font-size: 14px">
         <th>Request name</th>
         <th>Links</th>
-        <th>Total/Open/Done</th>
+        <th>Total/Done events</th>
         <th>PrepID</th>
         <th>Campaign</th>
-        <th>Output Datasets</th>
+        <th>Output datasets</th>
       </tr>
       {% for request in requests %}
         <tr>
@@ -47,7 +47,7 @@
                 {% elif request.TotalEventsEqual == 'not_found' %}
                   <li><span title="Cannot find request in Stats" class="red">Total:&nbsp;{{ request.TotalEvents }}</span></li>
                 {% endif %}
-                {% if request.OpenPercent == request.OldCompletion or request.DonePercent == request.OldCompletion %}
+                {% if request.DonePercent == request.OldCompletion %}
                   <li><span title="Completion is the same in Stats and Stats2" class="green">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
                 {% else %}
                   <li><span title="Completion is different in Stats and Stats2" class="red">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
@@ -55,16 +55,16 @@
               {% else %}
                 <li>Total:&nbsp;{{ request.TotalEvents }}</li>
               {% endif %}
-              {% if request.DonePercent != '' %}
-                  <li>Open:&nbsp;{{ request.OpenPercent }}%</li>
-                  <li>Done:&nbsp;{{ request.DonePercent }}%</li>
-                  <li>
-                    <div class="gray-bar">
-                      <div style="width: {{ request.DonePercent }}%;" class="done-bar"></div>
-                      <div style="width: {{ request.OpenPercent }}%;" class="open-bar"></div>
-                    </div>
-                  </li>
-              {% endif %}
+              <li>Done:&nbsp;{{ request.DonePercent }}%</li>
+              <li>
+                <div class="gray-bar">
+                  {% if request.LastDatasetType == 'VALID' %}
+                    <div style="width: {{ request.DonePercent }}%;" class="done-bar"></div>
+                  {% else %}
+                    <div style="width: {{ request.DonePercent }}%;" class="open-bar"></div>
+                  {% endif %}
+                </div>
+              </li>
             </ul>
           </td>
           <td><a href="/1?prepid={{ request.PrepID }}">{{ request.PrepID | replace("task_", "") }}</a></td>
