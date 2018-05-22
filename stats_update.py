@@ -61,8 +61,9 @@ class StatsUpdate():
                 self.logger.error('Exception while deleting %s:%s' % (request_name, str(e)))
 
         self.logger.info('Will update %d requests' % (len(changed_requests)))
-        for request_name in changed_requests:
+        for index, request_name in enumerate(changed_requests):
             try:
+                self.logger.info('Will update %d/%d request' % (index, len(changed_requests)))
                 self.update_one(request_name)
             except Exception as e:
                 self.logger.error('Exception while updating %s:%s' % (request_name, str(e)))
@@ -156,8 +157,8 @@ class StatsUpdate():
         url = '/couchdb/reqmgr_workload_cache/%s' % (request_name)
         req_dict = make_cmsweb_request(url)
         expected_events = self.get_expected_events_with_dict(req_dict)
+        campaigns = self.get_campaigns_from_request(req_dict)
         req_dict = pick_attributes(req_dict, ['AcquisitionEra',
-                                              'Campaign',
                                               'InputDataset',
                                               'Memory',
                                               'OutputDatasets',
@@ -172,6 +173,7 @@ class StatsUpdate():
                                           'UpdateTime': tr['UpdateTime']} for tr in req_dict.get('RequestTransition', [])]
         req_dict['_id'] = request_name
         req_dict['TotalEvents'] = expected_events
+        req_dict['Campaigns'] = campaigns
         req_dict['OutputDatasets'] = self.sort_datasets(req_dict['OutputDatasets'])
         req_dict['EventNumberHistory'] = []
         req_dict['RequestPriority'] = int(req_dict.get('RequestPriority', 0))
@@ -271,6 +273,31 @@ class StatsUpdate():
 
         self.logger.error('%s does not have total events!' % (req_dict['_id']))
         return -1
+
+    def get_campaigns_from_request(self, req_dict):
+        """
+        Get list of campaigns or acquisition eras in tasks. If there are no tasks, request's campaign will be used
+        """
+        task_number = 1
+        campaigns = []
+        while True:
+            task_name = 'Task%s' % task_number
+            if task_name not in req_dict:
+                break
+
+            self.logger.info('%s has %s' % (req_dict['_id'], task_name))
+            if 'Campaign' in req_dict[task_name]:
+                campaigns.append(req_dict[task_name]['Campaign'])
+            elif 'AcquisitionEra' in req_dict[task_name]:
+                campaigns.append(req_dict[task_name]['AcquisitionEra'])
+
+            task_number += 1
+
+        if len(campaigns) == 0:
+            if 'Campaign' in req_dict:
+                campaigns.append(req_dict['Campaign'])
+
+        return campaigns
 
     def sort_datasets(self, dataset_list):
         """

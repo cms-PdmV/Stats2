@@ -37,15 +37,16 @@ class Database:
         else:
             requests = self.requests_table.find()
 
-        left = requests.count() - (page + 1) * page_size
+        total = requests.count()
+        left = total - (page + 1) * page_size
         if left < 0:
             left = 0
 
         requests = requests.skip(page * page_size).limit(page_size)
-        return list(requests), left
+        return list(requests), left, total
 
     def get_requests_with_dataset(self, dataset):
-        requests, _ = self.query_requests({'OutputDatasets': dataset})
+        requests, _, _ = self.query_requests({'OutputDatasets': dataset})
         return requests
 
     def set_setting(self, setting_name, setting_value):

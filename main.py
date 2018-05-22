@@ -4,6 +4,8 @@ from database import Database
 from utils import setup_console_logging, make_simple_request
 from stats_update import StatsUpdate
 import json
+import re
+import logging
 
 
 app = Flask(__name__,
@@ -47,18 +49,20 @@ def index(page=1):
         pages = [-1, 1, -1]
         if req is not None:
             requests = [req]
+            total = 1
         else:
             requests = []
+            total = 0
 
     else:
         if prepid is not None:
-            requests, left = database.query_requests({'PrepID': prepid}, page - 1)
+            requests, left, total = database.query_requests({'PrepID': prepid}, page - 1)
         elif dataset is not None:
-            requests, left = database.query_requests({'OutputDatasets': dataset}, page - 1)
+            requests, left, total = database.query_requests({'OutputDatasets': re.compile(dataset, re.IGNORECASE)}, page - 1)
         elif campaign is not None:
-            requests, left = database.query_requests({'Campaign': campaign}, page - 1)
+            requests, left, total = database.query_requests({'Campaigns': re.compile(campaign, re.IGNORECASE)}, page - 1)
         else:
-            requests, left = database.query_requests(page=page - 1)
+            requests, left, total = database.query_requests(page=page - 1)
 
         pages = [page - 1, page, page + 1 if left > 0 else -1]
 
@@ -66,9 +70,16 @@ def index(page=1):
         check_with_old_stats(requests)
 
     for req in requests:
+        req['DonePercent'] = '0.00'
+        req['OpenPercent'] = '0.00'
+        req['LastDatasetType'] = 'NONE'
+        req['LastDataset'] = ''
         if req['TotalEvents'] > 0 and len(req['OutputDatasets']) > 0 and len(req['EventNumberHistory']) > 0:
             last_dataset = req['OutputDatasets'][-1:][0]
             last_history = req['EventNumberHistory'][-1:][0]
+            if last_dataset not in last_history['Datasets']:
+                continue
+
             calculated_dataset = last_history['Datasets'][last_dataset]
             done_events = calculated_dataset['Events']
             dataset_type = calculated_dataset['Type']
@@ -76,23 +87,18 @@ def index(page=1):
             req['DonePercent'] = '%.2f' % (done_events / total_events * 100.0)
             req['LastDatasetType'] = dataset_type
             req['LastDataset'] = last_dataset
-        else:
-            req['DonePercent'] = '0.00'
-            req['OpenPercent'] = '0.00'
-            req['LastDatasetType'] = 'NONE'
-            req['LastDataset'] = ''
 
     return render_template('index.html',
                            requests=requests,
                            pages=pages,
-                           total_requests=database.get_request_count(),
+                           total_requests=total,
                            query=request.query_string.decode('utf-8'))
 
 
 @app.route('/update/<string:request_name>')
 def update(request_name):
     StatsUpdate().perform_update(request_name=request_name)
-    return redirect("/0?request_name=" + request_name, code=302)
+    return redirect("/1?request_name=" + request_name, code=302)
 
 
 @app.route('/get/<string:request_name>')
@@ -121,12 +127,127 @@ def get_nice_json(request_name):
     return response
 
 
+@app.route('/count_campaign/<string:campaign_name>')
+def count_campaign(campaign_name):
+    database = Database()
+    requests, _, total = database.query_requests({'Campaigns': re.compile(campaign_name, re.IGNORECASE),
+                                                  'RequestType': {'$ne': 'Resubmission'}},
+                                                 page=0,
+                                                 page_size=1000000)
+    total_expected_events = 0
+    total_done_events = 0
+    total_open_events = 0
+    sums = dict()
+    for req in requests:
+        prepid = req.get('PrepID')
+        if prepid is not None:
+            if prepid in sums:
+                raise Exception('%s already exist' % (prepid))
+            else:
+                total_events = req.get('TotalEvents')
+                if len(req['EventNumberHistory']) == 0:
+                    continue
+
+                last_dataset = req['EventNumberHistory'][-1:][0]['Datasets']
+                if len(last_dataset) == 0:
+                    continue
+
+                last_dataset = last_dataset[req['OutputDatasets'][-1:][0]]
+                if last_dataset['Type'].lower() == 'valid':
+                    done_events = last_dataset['Events']
+                    open_events = 0
+                else:
+                    done_events = 0
+                    open_events = last_dataset['Events']
+
+                sums[prepid] = {'total_events': total_events,
+                                'open_events': open_events,
+                                'done_events': done_events}
+        else:
+            raise Exception('Prepid is NONE')
+
+    for prepid, req_dict in sums.items():
+        total_expected_events += req_dict['total_events']
+        total_done_events += req_dict['done_events']
+        total_open_events += req_dict['open_events']
+
+    response = make_response(json.dumps({'workflows': len(requests),
+                                         'prepids': len(sums),
+                                         'total_events': total_expected_events,
+                                         'open_events': total_open_events,
+                                         'done_events': total_done_events}), 200)
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+
+@app.route('/count_campaign_all/<string:campaign_name>')
+def count_campaign_all(campaign_name):
+    database = Database()
+    requests, _, total = database.query_requests({'Campaigns': re.compile(campaign_name, re.IGNORECASE)},
+                                                 page=0,
+                                                 page_size=1000000)
+    total_expected_events = 0
+    total_done_events = 0
+    total_open_events = 0
+
+    for req in requests:
+        prepid = req.get('PrepID')
+        if prepid is not None:
+
+                total_events = req.get('TotalEvents')
+                if len(req['EventNumberHistory']) == 0:
+                    continue
+
+                last_dataset = req['EventNumberHistory'][-1:][0]['Datasets']
+                if len(last_dataset) == 0:
+                    continue
+
+                last_dataset = last_dataset[req['OutputDatasets'][-1:][0]]
+                if last_dataset['Type'].lower() == 'valid':
+                    done_events = last_dataset['Events']
+                    open_events = 0
+                else:
+                    done_events = 0
+                    open_events = last_dataset['Events']
+
+                total_expected_events += total_events
+                total_open_events += open_events
+                total_done_events += done_events
+        else:
+            raise Exception('Prepid is NONE')
+
+    response = make_response(json.dumps({'workflows': len(requests),
+                                         'prepids': 0,
+                                         'total_events': total_expected_events,
+                                         'open_events': total_open_events,
+                                         'done_events': total_done_events}), 200)
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+
+@app.route('/update_campaign/<string:campaign_name>')
+def update_campaign(campaign_name):
+    database = Database()
+    requests, _, total = database.query_requests({'Campaigns': re.compile(campaign_name, re.IGNORECASE)},
+                                                 page=0,
+                                                 page_size=1000000)
+
+    updater = StatsUpdate()
+    logger = logging.getLogger('logger')
+    for index, req in enumerate(requests):
+        updater.perform_update(request_name=req['_id'])
+        logger.info('Updated %d/%d' % (index, len(requests)))
+
+    return redirect("/1?campaign=" + campaign_name, code=302)
+
+
 def run_flask():
     setup_console_logging()
     app.run(host='0.0.0.0',
-            port=5000,
+            port=443,
             debug=True,
-            threaded=True)
+            threaded=True,
+            ssl_context=('/home/jrumsevi/localhost.crt', '/home/jrumsevi/localhost.key'))
 
 
 if __name__ == '__main__':
