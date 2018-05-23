@@ -75,7 +75,8 @@ class StatsUpdate():
             self.logger.info('Will update event count for all requests because all of them are new')
             requests_to_recalculate = set(changed_requests)
         else:
-            requests_to_recalculate = set(changed_requests).union(set(self.get_list_of_requests_with_changed_datasets()))
+            changed_datasets = self.get_list_of_requests_with_changed_datasets()
+            requests_to_recalculate = set(changed_requests).union(set(changed_datasets))
 
         for request_name in requests_to_recalculate:
             try:
@@ -276,7 +277,8 @@ class StatsUpdate():
 
     def get_campaigns_from_request(self, req_dict):
         """
-        Get list of campaigns or acquisition eras in tasks. If there are no tasks, request's campaign will be used
+        Get list of campaigns or acquisition eras in tasks. If there are no tasks, request's
+        campaign or acquisition era will be used
         """
         task_number = 1
         campaigns = []
@@ -286,16 +288,26 @@ class StatsUpdate():
                 break
 
             self.logger.info('%s has %s' % (req_dict['_id'], task_name))
-            if 'Campaign' in req_dict[task_name]:
+            if 'Campaign' in req_dict[task_name]\
+                    and req_dict[task_name]['Campaign'] is not None\
+                    and len(req_dict[task_name]['Campaign']) > 0:
                 campaigns.append(req_dict[task_name]['Campaign'])
-            elif 'AcquisitionEra' in req_dict[task_name]:
+            elif 'AcquisitionEra' in req_dict[task_name]\
+                    and req_dict[task_name]['AcquisitionEra'] is not None\
+                    and len(req_dict[task_name]['AcquisitionEra']) > 0:
                 campaigns.append(req_dict[task_name]['AcquisitionEra'])
 
             task_number += 1
 
         if len(campaigns) == 0:
-            if 'Campaign' in req_dict:
+            if 'Campaign' in req_dict\
+                    and req_dict['Campaign'] is not None\
+                    and len(req_dict['Campaign']) > 0:
                 campaigns.append(req_dict['Campaign'])
+            elif 'AcquisitionEra' in req_dict\
+                    and req_dict['AcquisitionEra'] is not None\
+                    and len(req_dict['AcquisitionEra']) > 0:
+                campaigns.append(req_dict['AcquisitionEra'])
 
         return campaigns
 
