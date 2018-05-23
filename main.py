@@ -175,52 +175,8 @@ def count_campaign(campaign_name):
                                          'prepids': len(sums),
                                          'total_events': total_expected_events,
                                          'open_events': total_open_events,
-                                         'done_events': total_done_events}), 200)
-    response.headers['Content-Type'] = 'application/json'
-    return response
-
-
-@app.route('/count_campaign_all/<string:campaign_name>')
-def count_campaign_all(campaign_name):
-    database = Database()
-    requests, _, total = database.query_requests({'Campaigns': re.compile(campaign_name, re.IGNORECASE)},
-                                                 page=0,
-                                                 page_size=1000000)
-    total_expected_events = 0
-    total_done_events = 0
-    total_open_events = 0
-
-    for req in requests:
-        prepid = req.get('PrepID')
-        if prepid is not None:
-
-                total_events = req.get('TotalEvents')
-                if len(req['EventNumberHistory']) == 0:
-                    continue
-
-                last_dataset = req['EventNumberHistory'][-1:][0]['Datasets']
-                if len(last_dataset) == 0:
-                    continue
-
-                last_dataset = last_dataset[req['OutputDatasets'][-1:][0]]
-                if last_dataset['Type'].lower() == 'valid':
-                    done_events = last_dataset['Events']
-                    open_events = 0
-                else:
-                    done_events = 0
-                    open_events = last_dataset['Events']
-
-                total_expected_events += total_events
-                total_open_events += open_events
-                total_done_events += done_events
-        else:
-            raise Exception('Prepid is NONE')
-
-    response = make_response(json.dumps({'workflows': len(requests),
-                                         'prepids': 0,
-                                         'total_events': total_expected_events,
-                                         'open_events': total_open_events,
-                                         'done_events': total_done_events}), 200)
+                                         'done_events': total_done_events,
+                                         'total_in_das': total_done_events + total_open_events}), 200)
     response.headers['Content-Type'] = 'application/json'
     return response
 

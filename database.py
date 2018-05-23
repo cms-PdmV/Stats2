@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 import logging
+import time
 
 
 class Database:
@@ -13,6 +14,7 @@ class Database:
 
     def insert_request_if_does_not_exist(self, request):
         try:
+            request['LastUpdate'] = int(time.time())
             inserted_id = self.requests_table.insert_one(request).inserted_id
         except DuplicateKeyError:
             return None
@@ -23,6 +25,7 @@ class Database:
         self.requests_table.delete_one({'_id': request})
 
     def update_request(self, request):
+        request['LastUpdate'] = int(time.time())
         self.requests_table.replace_one({'_id': request['_id']}, request)
 
     def get_request_count(self):
