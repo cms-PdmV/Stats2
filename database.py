@@ -34,18 +34,24 @@ class Database:
     def get_request(self, request_name):
         return self.requests_table.find_one({'_id': request_name})
 
-    def query_requests(self, query_dict=None, page=0, page_size=100):
+    def query_requests(self, query_dict=None, page=None, page_size=None, fields=None):
         if query_dict is not None:
-            requests = self.requests_table.find(query_dict)
+            requests = self.requests_table.find(query_dict, projection=fields)
         else:
-            requests = self.requests_table.find()
+            requests = self.requests_table.find(projection=fields)
 
         total = requests.count()
-        left = total - (page + 1) * page_size
-        if left < 0:
+        if page is not None and page_size is not None:
+            requests = requests.skip(page * page_size).limit(page_size)
+            left = total - (page + 1) * page_size
+            if left < 0:
+                left = 0
+        elif page_size is not None:
+            requests = requests.limit(page_size)
+            left = 0
+        else:
             left = 0
 
-        requests = requests.skip(page * page_size).limit(page_size)
         return list(requests), left, total
 
     def get_requests_with_dataset(self, dataset):

@@ -46,8 +46,8 @@ class ConnectionWrapper():
                     return None
 
                 return response.read()
-            except http.client.BadStatusLine:
-                raise RuntimeError('Something is really wrong')
+            # except http.client.BadStatusLine:
+            #     raise RuntimeError('Something is really wrong')
             except Exception as ex:
                 self.logger.error('Exception while doing [%s] to %s: %s' % (method, url, str(ex)))
                 # most likely connection terminated

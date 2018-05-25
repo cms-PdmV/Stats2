@@ -14,6 +14,9 @@ app = Flask(__name__,
 api = Api(app)
 
 
+__PAGE_SIZE = 50
+
+
 def check_with_old_stats(requests):
     """
     Delete this if Stats2 is used as prod service
@@ -56,13 +59,17 @@ def index(page=1):
 
     else:
         if prepid is not None:
-            requests, left, total = database.query_requests({'PrepID': prepid}, page - 1)
+            requests, left, total = database.query_requests({'PrepID': prepid}, page - 1, __PAGE_SIZE)
         elif dataset is not None:
-            requests, left, total = database.query_requests({'OutputDatasets': re.compile(dataset, re.IGNORECASE)}, page - 1)
+            requests, left, total = database.query_requests({'OutputDatasets': re.compile(dataset, re.IGNORECASE)},
+                                                            page - 1,
+                                                            __PAGE_SIZE)
         elif campaign is not None:
-            requests, left, total = database.query_requests({'Campaigns': re.compile(campaign, re.IGNORECASE)}, page - 1)
+            requests, left, total = database.query_requests({'Campaigns': re.compile(campaign, re.IGNORECASE)},
+                                                            page - 1,
+                                                            __PAGE_SIZE)
         else:
-            requests, left, total = database.query_requests(page=page - 1)
+            requests, left, total = database.query_requests(page=page - 1, page_size=__PAGE_SIZE)
 
         pages = [page - 1, page, page + 1 if left > 0 else -1]
 
@@ -131,9 +138,7 @@ def get_nice_json(request_name):
 def count_campaign(campaign_name):
     database = Database()
     requests, _, total = database.query_requests({'Campaigns': re.compile(campaign_name, re.IGNORECASE),
-                                                  'RequestType': {'$ne': 'Resubmission'}},
-                                                 page=0,
-                                                 page_size=1000000)
+                                                  'RequestType': {'$ne': 'Resubmission'}})
     total_expected_events = 0
     total_done_events = 0
     total_open_events = 0
@@ -184,9 +189,7 @@ def count_campaign(campaign_name):
 @app.route('/update_campaign/<string:campaign_name>')
 def update_campaign(campaign_name):
     database = Database()
-    requests, _, total = database.query_requests({'Campaigns': re.compile(campaign_name, re.IGNORECASE)},
-                                                 page=0,
-                                                 page_size=1000000)
+    requests, _, total = database.query_requests({'Campaigns': re.compile(campaign_name, re.IGNORECASE)})
 
     updater = StatsUpdate()
     logger = logging.getLogger('logger')
