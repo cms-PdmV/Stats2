@@ -34,11 +34,11 @@ class Database:
     def get_request(self, request_name):
         return self.requests_table.find_one({'_id': request_name})
 
-    def query_requests(self, query_dict=None, page=None, page_size=None, fields=None):
+    def query_requests(self, query_dict=None, page=None, page_size=None):
         if query_dict is not None:
-            requests = self.requests_table.find(query_dict, projection=fields)
+            requests = self.requests_table.find(query_dict)
         else:
-            requests = self.requests_table.find(projection=fields)
+            requests = self.requests_table.find()
 
         total = requests.count()
         if page is not None and page_size is not None:

@@ -2,8 +2,9 @@ import logging
 import time
 import argparse
 import json
+import traceback
 from utils import setup_console_logging
-from database import Database
+from couchdb_database import Database
 from utils import make_cmsweb_request, pick_attributes, make_simple_request
 
 
@@ -52,7 +53,6 @@ class StatsUpdate():
         """
         update_start = time.time()
         changed_requests, deleted_requests, last_seq = self.get_list_of_changed_requests()
-        initial_update = self.database.get_request_count() == 0
         self.logger.info('Will delete %d requests' % (len(deleted_requests)))
         for request_name in deleted_requests:
             try:
@@ -63,20 +63,18 @@ class StatsUpdate():
         self.logger.info('Will update %d requests' % (len(changed_requests)))
         for index, request_name in enumerate(changed_requests):
             try:
-                self.logger.info('Will update %d/%d request' % (index, len(changed_requests)))
+                self.logger.info('Will update %d/%d request' % (index + 1, len(changed_requests)))
                 self.update_one(request_name)
             except Exception as e:
-                self.logger.error('Exception while updating %s:%s' % (request_name, str(e)))
+                self.logger.error('Exception while updating %s:%s\nTraceback:%s' % (request_name,
+                                                                                    str(e),
+                                                                                    traceback.format_exc()))
 
         update_end = time.time()
         self.logger.info('Finished updating requests')
         self.logger.info('Will update event count')
-        if initial_update:
-            self.logger.info('Will update event count for all requests because all of them are new')
-            requests_to_recalculate = set(changed_requests)
-        else:
-            changed_datasets = self.get_list_of_requests_with_changed_datasets()
-            requests_to_recalculate = set(changed_requests).union(set(changed_datasets))
+        changed_datasets = self.get_list_of_requests_with_changed_datasets()
+        requests_to_recalculate = set(changed_requests).union(set(changed_datasets))
 
         for request_name in requests_to_recalculate:
             try:
@@ -112,8 +110,10 @@ class StatsUpdate():
         if req_dict_old is None:
             req_dict_old = {'_id': request_name}
             self.logger.info('Inserting %s' % (request_name))
-            self.database.insert_request_if_does_not_exist(req_dict_old)
-            self.steal_history_from_old_stats(req_dict_old)
+            self.database.update_request(req_dict_old)
+            # self.steal_history_from_old_stats(req_dict_old)
+        else:
+            req_dict['_rev'] = req_dict_old['_rev']
 
         req_dict['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
         req_dict['OutputDatasets'] = self.sort_datasets(req_dict['OutputDatasets'])
@@ -126,10 +126,8 @@ class StatsUpdate():
         Action to delete one request from database.
         """
         self.logger.info('Deleting %s' % (request_name))
-        delete_start = time.time()
         self.database.delete_request(request_name)
-        delete_end = time.time()
-        self.logger.info('Deleted %s in %.3fs' % (request_name, (delete_end - delete_start)))
+        self.logger.info('Deleted %s' % (request_name))
 
     def recalculate_one(self, request_name):
         """
@@ -287,7 +285,6 @@ class StatsUpdate():
             if task_name not in req_dict:
                 break
 
-            self.logger.info('%s has %s' % (req_dict['_id'], task_name))
             if 'Campaign' in req_dict[task_name]\
                     and req_dict[task_name]['Campaign'] is not None\
                     and len(req_dict[task_name]['Campaign']) > 0:
@@ -429,10 +426,9 @@ class StatsUpdate():
         updated_datasets = self.get_updated_dataset_list_from_dbs(since_timestamp=last_dataset_modification_date)
         self.logger.info('Will find if any of changed datasets belong to requests in database')
         for dataset in updated_datasets:
-            dataset_requests = self.database.get_requests_with_dataset(dataset)
+            dataset_requests = self.database.get_requests_with_dataset(dataset, page_size=1000)
             self.logger.info('%d requests contain %s' % (len(dataset_requests), dataset))
-            for dataset_request in dataset_requests:
-                requests.add(dataset_request['_id'])
+            requests += dataset_requests
 
         self.logger.info('Found %d requests for changed datasets' % (len(requests)))
         return requests

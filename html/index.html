@@ -9,7 +9,7 @@
   <body>
     <a class="title" href="/">Stats<sup class="red">2</sup></a>
     <ul>
-      <li>Requests: {{ total_requests }}</li>
+      <li>Requests in Stats<sup class="red">2</sup>: {{ total_requests }}</li>
       <li><a href="http://instance3:8080/job/Stats2Update/lastBuild/">Last Jenkins job</a></li>
       <li><a href="https://github.com/justinasr/Stats2/tree/dev">GitHub</a></li>
     </ul>
@@ -24,7 +24,7 @@
       </tr>
       {% for request in requests %}
         <tr>
-          <td><a href="/1?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
+          <td><a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
           <td>
             <ul class="no-bullets">
               <li><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a></li>
@@ -33,7 +33,7 @@
               <li><a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a></li>
               <li><a href="/view_json/{{ request.RequestName }}">View&nbsp;JSON</a></li>
               <li><a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&RN={{ request.RequestName }}">Request&nbsp;in&nbsp;Stats</a></li>
-              <li><a href="/1?request_name={{ request.RequestName }}&check=1">Check&nbsp;with&nbsp;Stats</a></li>
+              <li><a href="/0?request_name={{ request.RequestName }}&check=1">Check&nbsp;with&nbsp;Stats</a></li>
             </ul>
           </td>
           <td>
@@ -67,17 +67,17 @@
               </li>
             </ul>
           </td>
-          <td><a href="/1?prepid={{ request.PrepID }}">{{ request.PrepID | replace("task_", "") }}</a></td>
+          <td><a href="/0?prepid={{ request.PrepID }}">{{ request.PrepID | replace("task_", "") }}</a></td>
           <td>
             <ul class="no-bullets">
               {% for campaign in request.Campaigns %}
-                <li><a href="/1?campaign={{ campaign }}">{{ campaign }}</a>&nbsp;<a href="/count_campaign/{{ campaign }}">Statistics</a></li>
+                <li><a href="/0?campaign={{ campaign }}">{{ campaign }}</a></li>
               {% endfor %}
           </td>
           <td>
             <ul class="no-bullets">
               {% for dataset in request.OutputDatasets %}
-                <li>{% if dataset == request.LastDataset %}<b>{% endif %}<a href="/1?dataset={{ dataset }}">{{ dataset }}</a>{% if dataset == request.LastDataset %}</b>{% endif %}&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">Stats</a>&nbsp;<a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset }}">DAS</a></li>
+                <li>{% if dataset == request.LastDataset %}<b>{% endif %}<a href="/0?dataset={{ dataset }}">{{ dataset }}</a>{% if dataset == request.LastDataset %}</b>{% endif %}&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">Stats</a>&nbsp;<a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset }}">DAS</a></li>
               {% endfor %}
             </ul>
           </td>
@@ -86,9 +86,9 @@
     </table>
     <div class="footer">
       <ul class="pagination justify-content-center">
-        <li class="page-item {% if pages[0] < 1 %}disabled{% endif %}"><a class="page-link" href="/{{ pages[0] }}?{{ query }}">Previous</a></li>
-        <li class="page-item"><a class="page-link" href="#">{{ pages[1] }}</a></li>
-        <li class="page-item {% if pages[2] < 1 %}disabled{% endif %}"><a class="page-link" href="/{{ pages[2] }}?{{ query }}">Next</a></li>
+        <li class="page-item {% if not pages[1] %}disabled{% endif %}"><a class="page-link" href="/{{ pages[0] - 1 }}?{{ query }}">Previous</a></li>
+        <li class="page-item"><a class="page-link" href="#">{{ pages[0] }}</a></li>
+        <li class="page-item {% if not pages[2] %}disabled{% endif %}"><a class="page-link" href="/{{ pages[0] + 1 }}?{{ query }}">Next</a></li>
       </ul>
     </div>
   </body>
