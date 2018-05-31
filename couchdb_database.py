@@ -26,8 +26,11 @@ class Database:
             self.logger.error(str(err))
 
     def delete_request(self, request_name):
-        url = self.requests_table + '/' + request_name
-        self.make_request(url, method='DELETE')
+        request = self.get_request(request_name)
+        if request is not None and request.get('_rev') is not None:
+            rev = request['_rev']
+            url = '%s/%s?rev=%s' % (self.requests_table, request_name, rev)
+            self.make_request(url, method='DELETE')
 
     def get_request_count(self):
         return self.make_request(self.requests_table)['doc_count']
@@ -37,7 +40,9 @@ class Database:
         try:
             return self.make_request(url)
         except HTTPError as err:
-            self.logger.error(str(err))
+            if err.code != 404:
+                self.logger.error(str(err))
+
             return None
 
     def get_requests_with_prepid(self, prepid, page=0, page_size=PAGE_SIZE, include_docs=False):

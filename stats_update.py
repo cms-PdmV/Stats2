@@ -409,7 +409,7 @@ class StatsUpdate():
         """
         Get list of datasets that changed since last update.
         """
-        url = '/dbs/prod/global/DBSReader/datasets?min_ldate=%d' % (since_timestamp)
+        url = '/dbs/prod/global/DBSReader/datasets?min_ldate=%d&dataset_access_type=*' % (since_timestamp)
         self.logger.info('Getting the list of modified datasets since %d from %s' % (since_timestamp, url))
         dataset_list = make_cmsweb_request(url)
         dataset_list = [dataset['dataset'] for dataset in dataset_list]
@@ -428,7 +428,7 @@ class StatsUpdate():
         for dataset in updated_datasets:
             dataset_requests = self.database.get_requests_with_dataset(dataset, page_size=1000)
             self.logger.info('%d requests contain %s' % (len(dataset_requests), dataset))
-            requests += dataset_requests
+            requests.update(dataset_requests)
 
         self.logger.info('Found %d requests for changed datasets' % (len(requests)))
         return requests
