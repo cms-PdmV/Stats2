@@ -31,7 +31,7 @@ Install Python 3.4 and pip3
 sudo yum install python34.x86_64
 sudo yum install python34-pip.noarch
 ```
-### Install mongodb
+### ~~Install mongodb
 With the vim editor, create a .repo file for yum, the package management utility for CentOS:
 ```
 sudo vim /etc/yum.repos.d/mongodb-org.repo
@@ -48,7 +48,7 @@ gpgkey=https://www.mongodb.org/static/pgp/server-3.4.asc
 ```
 Save and close the file.
 
-We can install the mongodb-org package from the third-party repository using the yum utility.
+~~We can install the mongodb-org package from the third-party repository using the yum utility.
 ```
 sudo yum install mongodb-org
 ```
@@ -56,7 +56,7 @@ Next, start the MongoDB service with the systemctl utility:
 ```
 sudo systemctl start mongod
 ```
-### Install pymongo
+### Install pymongo~~
 ```
 sudo pip3 install pymongo
 ```
