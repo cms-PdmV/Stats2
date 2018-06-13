@@ -111,10 +111,10 @@ class StatsUpdate():
             req_dict_old = {'_id': request_name}
             self.logger.info('Inserting %s' % (request_name))
             self.database.update_request(req_dict_old)
+            req_dict_old = self.database.get_request(request_name)
             # self.steal_history_from_old_stats(req_dict_old)
-        else:
-            req_dict['_rev'] = req_dict_old['_rev']
 
+        req_dict['_rev'] = req_dict_old['_rev']
         req_dict['EventNumberHistory'] = req_dict_old.get('EventNumberHistory', [])
         req_dict['OutputDatasets'] = self.sort_datasets(req_dict['OutputDatasets'])
         self.database.update_request(req_dict)

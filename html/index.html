@@ -30,8 +30,8 @@
               <li><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a></li>
               <li><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a></li>
               <li><a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a></li>
-              <li><a href="/update/{{ request.RequestName }}">Update&nbsp;Now</a></li>
-              <li><a href="/view_json/{{ request.RequestName }}">View&nbsp;JSON</a></li>
+              <li><a href="/update/{{ request._id }}">Update&nbsp;Now</a></li>
+              <li><a href="/view_json/{{ request._id }}">View&nbsp;JSON</a></li>
               <li><a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&RN={{ request.RequestName }}">Request&nbsp;in&nbsp;Stats</a></li>
               <li><a href="/0?request_name={{ request.RequestName }}&check=1">Check&nbsp;with&nbsp;Stats</a></li>
             </ul>
