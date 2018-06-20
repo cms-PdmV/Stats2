@@ -24,7 +24,7 @@
       </tr>
       {% for request in requests %}
         <tr>
-          <td>Name: <a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a><br>Type: <a href="/0?type={{ request.RequestType }}">{{ request.RequestType }}</a><br>Priority: {{ request.RequestPriority }}<br>Last update: {{ request.LastUpdate | safe }}</td>
+          <td>Name:&nbsp;<a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a><br>Type: <a href="/0?type={{ request.RequestType }}">{{ request.RequestType }}</a><br>Priority: {{ request.RequestPriority }}<br>Last update: {{ request.LastUpdate | safe }}</td>
           <td>
             <ul class="no-bullets">
               <li><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a></li>
