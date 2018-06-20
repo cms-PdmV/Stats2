@@ -15,6 +15,7 @@ class Database:
         self.requests_output_datasets_view = self.requests_table + '/_design/_designDoc/_view/outputDatasets'
         self.requests_campaigns_view = self.requests_table + '/_design/_designDoc/_view/campaigns'
         self.requests_prepid_view = self.requests_table + '/_design/_designDoc/_view/prepids'
+        self.requests_type_view = self.requests_table + '/_design/_designDoc/_view/types'
         self.settings_table = self.database_url + '/settings'
 
     def update_request(self, request):
@@ -72,6 +73,18 @@ class Database:
     def get_requests_with_campaign(self, campaign, page=0, page_size=PAGE_SIZE, include_docs=False):
         url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.requests_campaigns_view,
                                                                 campaign,
+                                                                page_size,
+                                                                page * page_size,
+                                                                'True' if include_docs else 'False')
+        rows = self.make_request(url)['rows']
+        if include_docs:
+            return [x['doc'] for x in rows]
+        else:
+            return [x['id'] for x in rows]
+
+    def get_requests_with_type(self, request_type, page=0, page_size=PAGE_SIZE, include_docs=False):
+        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.requests_type_view,
+                                                                request_type,
                                                                 page_size,
                                                                 page * page_size,
                                                                 'True' if include_docs else 'False')

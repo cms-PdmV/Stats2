@@ -76,11 +76,15 @@ class StatsUpdate():
         changed_datasets = self.get_list_of_requests_with_changed_datasets()
         requests_to_recalculate = set(changed_requests).union(set(changed_datasets))
 
-        for request_name in requests_to_recalculate:
+        self.logger.info('Will update event count for %d requests' % (len(requests_to_recalculate)))
+        for index, request_name in enumerate(requests_to_recalculate):
             try:
+                self.logger.info('Will update event count for %d/%d' % (index + 1, len(requests_to_recalculate)))
                 self.recalculate_one(request_name)
             except Exception as e:
-                self.logger.error('Exception while recalculating %s:%s' % (request_name, str(e)))
+                self.logger.error('Exception while updating event count %s:%s\nTraceback:%s' % (request_name,
+                                                                                                str(e),
+                                                                                                traceback.format_exc()))
 
         recalculation_end = time.time()
         self.database.set_setting('last_reqmgr_sequence', int(last_seq))
@@ -134,7 +138,7 @@ class StatsUpdate():
         Action to update event count for request.
         """
         recalc_start = time.time()
-        self.logger.info('Will update event count for %s' % (request_name))
+        self.logger.info('Updating event count for %s' % (request_name))
         request = self.database.get_request(request_name)
         if request is None:
             self.logger.warning('Will not update %s event count because it\'s no longer in database' % (request_name))
@@ -430,8 +434,23 @@ class StatsUpdate():
             self.logger.info('%d requests contain %s' % (len(dataset_requests), dataset))
             requests.update(dataset_requests)
 
+        requests_from_wmstats = self.get_active_requests_from_wmstats()
+        requests.update(set(requests_from_wmstats))
+
         self.logger.info('Found %d requests for changed datasets' % (len(requests)))
         return requests
+
+    def get_active_requests_from_wmstats(self):
+        """
+        Get list of requests which are currently putting data to DBS.
+        """
+        self.logger.info('Will get list of requests which are currently putting data to DBS')
+        url = '/wmstatsserver/data/filtered_requests?mask=RequestName'
+        request_list = make_cmsweb_request(url).get('result', [])
+        request_list = [request['RequestName'] for request in request_list]
+
+        self.logger.info('Found %d requests which are currently putting data to DBS' % (len(request_list)))
+        return request_list
 
     def steal_history_from_old_stats(self, req_dict):
         from time import strptime, mktime

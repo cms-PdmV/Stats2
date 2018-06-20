@@ -9,13 +9,13 @@
   <body>
     <a class="title" href="/">Stats<sup class="red">2</sup></a>
     <ul>
-      <li>Requests in Stats<sup class="red">2</sup>: {{ total_requests }}</li>
+      <li>Total requests in Stats<sup class="red">2</sup>: {{ total_requests }}</li>
       <li><a href="http://instance3:8080/job/Stats2Update/lastBuild/">Last Jenkins job</a></li>
       <li><a href="https://github.com/justinasr/Stats2/tree/dev">GitHub</a></li>
     </ul>
     <table class="table" style="font-size: 12px">
       <tr style="font-size: 14px">
-        <th>Request name</th>
+        <th>Request</th>
         <th>Links</th>
         <th>Total/Done events</th>
         <th>PrepID</th>
@@ -24,7 +24,7 @@
       </tr>
       {% for request in requests %}
         <tr>
-          <td><a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a></td>
+          <td>Name: <a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a><br>Type: <a href="/0?type={{ request.RequestType }}">{{ request.RequestType }}</a><br>Priority: {{ request.RequestPriority }}<br>Last update: {{ request.LastUpdate | safe }}</td>
           <td>
             <ul class="no-bullets">
               <li><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a></li>
