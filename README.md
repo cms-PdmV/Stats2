@@ -31,35 +31,76 @@ Install Python 3.4 and pip3
 sudo yum install python34.x86_64
 sudo yum install python34-pip.noarch
 ```
-### ~~Install mongodb~~
-~~With the vim editor, create a .repo file for yum, the package management utility for CentOS:~~
+### CouchDB
+##### Add CouchDB repo
+Add:
 ```
-sudo vim /etc/yum.repos.d/mongodb-org.repo
-```
-~~Then, visit the Install on Red Hat section of MongoDB’s documentation and add the repository information for the latest stable release to the file:~~
-```
-/etc/yum.repos.d/mongodb-org.repo
-[mongodb-org-3.4]
-name=MongoDB Repository
-baseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/3.4/x86_64/
-gpgcheck=1
+[bintray--apache-couchdb-rpm]
+name=bintray--apache-couchdb-rpm
+baseurl=http://apache.bintray.com/couchdb-rpm/el$releasever/$basearch/
+gpgcheck=0
+repo_gpgcheck=0
 enabled=1
-gpgkey=https://www.mongodb.org/static/pgp/server-3.4.asc
 ```
-~~Save and close the file.~~
+To:
+```
+/etc/yum.repos.d/bintray-apache-couchdb-rpm.repo
+```
+or on puppet managed machines:
+```
+/etc/yum-puppet.repos.d/bintray-apache-couchdb-rpm.repo
+```
 
-~~We can install the mongodb-org package from the third-party repository using the yum utility.~~
+##### Install CouchDB
 ```
-sudo yum install mongodb-org
+sudo yum -y install epel-release
+sudo yum -y install couchdb
 ```
-~~Next, start the MongoDB service with the systemctl utility:~~
+CouchDB is installed to `/opt/couchdb` directory
+##### Create views in CouchDB
+Campaigns:
 ```
-sudo systemctl start mongod
+function (doc) {
+  if (doc.Campaigns) {
+    addedCampaigns = {};
+    var i;
+    for (i = 0; i < doc.Campaigns.length; i++) {
+      if (!(doc.Campaigns[i] in addedCampaigns)) {
+        emit(doc.Campaigns[i], doc.RequestName);
+        addedCampaigns[doc.Campaigns[i]] = true;
+      }
+    }
+  }
+}
 ```
-~~### Install pymongo~~
+Output datasets:
 ```
-sudo pip3 install pymongo
+function (doc) {
+  var i;
+  if (doc.OutputDatasets) {
+    for (i = 0; i < doc.OutputDatasets.length; i++) {
+      emit(doc.OutputDatasets[i], doc.RequestName);
+    }
+  }
+}
 ```
+PrepIDs:
+```
+function (doc) {
+  if (doc.PrepID) {
+    emit(doc.PrepID, doc.RequestName);
+  }
+}
+```
+Request types:
+```
+function (doc) {
+  if (doc.RequestType) {
+    emit(doc.RequestType, doc.RequestName);
+  }
+}
+```
+
 ### Install dependencies
 Install flask and flask_restful
 ```
