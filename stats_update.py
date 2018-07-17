@@ -364,14 +364,6 @@ class StatsUpdate():
                              'DIGI-RECO',
                              'RECO',
                              'RAWAODSIM',
-                             'AOD',
-                             'AODSIM',
-                             'MINIAOD',
-                             'MINIAODSIM',
-                             'NANOAOD',
-                             'NANOAODSIM',
-                             'NANOEDMAOD',
-                             'NANOEDMAODSIM',
                              'GEN-SIM-RECO',
                              'GEN-SIM-RAW',
                              'GEN-SIM-RAW-HLT',
@@ -379,7 +371,13 @@ class StatsUpdate():
                              'GEN-SIM-DIGI',
                              'GEN-SIM-DIGI-RECO',
                              'GEN-SIM-DIGI-RAW',
-                             'GEN-SIM-DIGI-RAW-RECO']
+                             'GEN-SIM-DIGI-RAW-RECO',
+                             'AOD',
+                             'AODSIM',
+                             'MINIAOD',
+                             'MINIAODSIM',
+                             'NANOAOD',
+                             'NANOAODSIM']
 
             for (p, t) in enumerate(tier_priority):
                 if t.upper() == tier:

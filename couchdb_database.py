@@ -18,9 +18,11 @@ class Database:
         self.requests_type_view = self.requests_table + '/_design/_designDoc/_view/types'
         self.settings_table = self.database_url + '/settings'
 
-    def update_request(self, request):
+    def update_request(self, request, update_timestamp=True):
         try:
-            request['LastUpdate'] = int(time.time())
+            if update_timestamp:
+                request['LastUpdate'] = int(time.time())
+
             url = self.requests_table + '/' + request['_id']
             self.make_request(url, request, 'PUT')
         except HTTPError as err:
