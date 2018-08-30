@@ -1,7 +1,7 @@
 # Stats2
 ## What is it?
 Stats2 takes list of requests from *RequestManager2* and stores smaller (not all attributes) copy of all requests. It also takes nuber of open/done events from *dbs* and collects history for each dataset in all requests.
-Main improvement over old Stats is that Stats2 fetch only changes since last update. As a result, updates take no more than few seconds and can be performed as frequently as desired.
+Main improvement over old Stats is that Stats2 fetch only changes of workflows since last update and fetches events only for these workflows which are currently in production. As a result, updates take about 10-20 minutes instead of 1-2 hours.
 ## No Javascript!
 Stats2 has 0 javascript. However, it uses Jinja2 templates a lot.
 ## Console usage
