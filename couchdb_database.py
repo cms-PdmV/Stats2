@@ -17,6 +17,7 @@ class Database:
         self.requests_prepid_view = self.requests_table + '/_design/_designDoc/_view/prepids'
         self.requests_type_view = self.requests_table + '/_design/_designDoc/_view/types'
         self.settings_table = self.database_url + '/settings'
+        self.auth_header = str(open('/home/jrumsevi/stats2_auth.txt', "r").read()).replace('\n', '')
 
     def update_request(self, request, update_timestamp=True):
         try:
@@ -135,6 +136,6 @@ class Database:
             data = data.encode("utf-8")
 
         req.add_header('Content-Type', 'application/json')
-        req.add_header('Authorization', 'Basic c3RhdHM6c3RhdHM=')
+        req.add_header('Authorization', self.auth_header)
         response = json.loads(urlopen(req, data=data).read().decode('utf-8'))
         return response
