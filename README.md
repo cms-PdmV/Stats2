@@ -26,10 +26,10 @@ Note that update actions require two environment variables: `USERKEY` and `USERC
 
 ## Installation
 ### Install Python 3 and pip
-Install Python 3.4 and pip3
+Install Python 3.6 and pip3
 ```
-sudo yum install python34.x86_64
-sudo yum install python34-pip.noarch
+yum install -y python36.x86_64
+python3.6 -m ensurepip --default-pi
 ```
 ### CouchDB
 ##### Add CouchDB repo
@@ -58,7 +58,7 @@ sudo yum -y install couchdb
 ```
 CouchDB is installed to `/opt/couchdb` directory
 ##### Create views in CouchDB
-Campaigns:
+Campaigns (name:`campaigns`):
 ```
 function (doc) {
   if (doc.Campaigns) {
@@ -73,7 +73,7 @@ function (doc) {
   }
 }
 ```
-Output datasets:
+Output datasets (name:`outputDatasets`):
 ```
 function (doc) {
   var i;
@@ -84,7 +84,7 @@ function (doc) {
   }
 }
 ```
-PrepIDs:
+PrepIDs (name:`prepids`):
 ```
 function (doc) {
   if (doc.PrepID) {
@@ -92,7 +92,7 @@ function (doc) {
   }
 }
 ```
-Request types:
+Request types (name:`types`):
 ```
 function (doc) {
   if (doc.RequestType) {
@@ -104,8 +104,8 @@ function (doc) {
 ### Install dependencies
 Install flask and flask_restful
 ```
-sudo pip3 install flask
-sudo pip3 install flask_restful
+sudo python3.6 -m pip install install flask
+sudo python3.6 -m pip install install flask_restful
 ```
 ### Clone Stats2
 ```
