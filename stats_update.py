@@ -262,6 +262,10 @@ class StatsUpdate():
                 return int(req_dict['Task1']['RequestNumEvents'])
             elif 'Step1' in req_dict and 'RequestNumEvents' in req_dict['Step1']:
                 return int(req_dict['Step1']['RequestNumEvents'])
+            elif 'Task1' in req_dict and 'InputDataset' in req_dict['Task1']:
+                return self.get_event_count_from_dbs(req_dict['Task1']['InputDataset'])
+            elif 'Step1' in req_dict and 'InputDataset' in req_dict['Step1']:
+                return self.get_event_count_from_dbs(req_dict['Step1']['InputDataset'])
 
         else:
             prep_id = req_dict['PrepID']
