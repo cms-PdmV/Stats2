@@ -113,14 +113,12 @@ git clone https://github.com/justinasr/Stats2.git
 ```
 ## Running it
 ### Launch the website
-Provide the certificate and key and launch the website
+Launch the main.py
 ```
-export USERCRT=/.../user.crt.pem
-export USERKEY=/.../user.key.pem
 python3 main.py &
 ```
 ### Perform update
-Provide the certificate and key and start the initial update
+Provide the grid certificate and key (for cmsweb interaction) and start the initial update
 ```
 export USERCRT=/.../user.crt.pem
 export USERKEY=/.../user.key.pem
