@@ -104,8 +104,8 @@ function (doc) {
 ### Install dependencies
 Install flask and flask_restful
 ```
-sudo python3.6 -m pip install install flask
-sudo python3.6 -m pip install install flask_restful
+sudo python3.6 -m pip install flask
+sudo python3.6 -m pip install flask_restful
 ```
 ### Clone Stats2
 ```
