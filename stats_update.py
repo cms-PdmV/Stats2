@@ -247,6 +247,8 @@ class StatsUpdate():
             f = float(req_dict['FilterEfficiency'])
         elif 'Task1' in req_dict and 'FilterEfficiency' in req_dict['Task1']:
             f = float(req_dict['Task1']['FilterEfficiency'])
+        elif 'Step1' in req_dict and 'FilterEfficiency' in req_dict['Step1']:
+            f = float(req_dict['Step1']['FilterEfficiency'])
         else:
             f = 1.
 
@@ -288,8 +290,14 @@ class StatsUpdate():
         """
         task_number = 1
         campaigns = []
+        # Check whether it's a TaskChain or a StepChain
+        if 'StepChain' in req_dict:
+            task_format = 'Step%s'
+        else:
+            task_format = 'Task%s'
+
         while True:
-            task_name = 'Task%s' % task_number
+            task_name = task_format % task_number
             if task_name not in req_dict:
                 break
 

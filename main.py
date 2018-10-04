@@ -1,8 +1,7 @@
-from flask import Flask, render_template, request, redirect, make_response
+from flask import Flask, render_template, request, make_response
 from flask_restful import Api
 from couchdb_database import Database
-from utils import setup_console_logging, make_simple_request
-from stats_update import StatsUpdate
+from utils import setup_file_logging, make_simple_request
 import json
 import time
 
@@ -73,36 +72,38 @@ def index(page=0):
         req['OpenPercent'] = '0.00'
         req['LastDatasetType'] = 'NONE'
         req['LastDataset'] = ''
+        req['DoneEvents'] = '0'
+        req['LastUpdate'] = time.strftime('%Y&#8209;%m&#8209;%d&nbsp;%H:%M:%S', time.localtime(req['LastUpdate']))
 
+        if len(req['OutputDatasets']) == 0:
+            continue
+
+        if len(req['EventNumberHistory']) == 0:
+            continue
+
+        last_dataset = req['OutputDatasets'][-1:][0]
+        last_history = req['EventNumberHistory'][-1:][0]
+        if last_dataset not in last_history['Datasets']:
+            continue
+
+        calculated_dataset = last_history['Datasets'][last_dataset]
+        dataset_type = calculated_dataset['Type']
+        req['LastDatasetType'] = dataset_type
+        req['LastDataset'] = last_dataset
+        done_events = calculated_dataset['Events']
+        req['DoneEvents'] = done_events
         if 'TotalEvents' not in req:
             continue
 
-        req['LastUpdate'] = time.strftime('%Y&#8209;%m&#8209;%d&nbsp;%H:%M:%S', time.localtime(req['LastUpdate']))
-        if req['TotalEvents'] > 0 and len(req['OutputDatasets']) > 0 and len(req['EventNumberHistory']) > 0:
-            last_dataset = req['OutputDatasets'][-1:][0]
-            last_history = req['EventNumberHistory'][-1:][0]
-            if last_dataset not in last_history['Datasets']:
-                continue
-
-            calculated_dataset = last_history['Datasets'][last_dataset]
-            done_events = calculated_dataset['Events']
-            dataset_type = calculated_dataset['Type']
+        if req['TotalEvents'] > 0:
             total_events = req['TotalEvents']
             req['DonePercent'] = '%.2f' % (done_events / total_events * 100.0)
-            req['LastDatasetType'] = dataset_type
-            req['LastDataset'] = last_dataset
 
     return render_template('index.html',
                            requests=requests,
                            total_requests=database.get_request_count(),
                            pages=pages,
                            query=request.query_string.decode('utf-8'))
-
-
-@app.route('/update/<string:request_name>')
-def update(request_name):
-    StatsUpdate().perform_update(request_name=request_name)
-    return redirect("/1?request_name=" + request_name, code=302)
 
 
 @app.route('/get/<string:request_name>')
@@ -132,7 +133,7 @@ def get_nice_json(request_name):
 
 
 def run_flask():
-    setup_console_logging()
+    setup_file_logging()
     app.run(host='0.0.0.0',
             port=443,
             debug=True,
