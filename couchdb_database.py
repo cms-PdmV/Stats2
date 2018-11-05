@@ -11,36 +11,36 @@ class Database:
     def __init__(self):
         self.logger = logging.getLogger('logger')
         self.database_url = 'http://localhost:5984'
-        self.requests_table = self.database_url + '/requests'
-        self.requests_output_datasets_view = self.requests_table + '/_design/_designDoc/_view/outputDatasets'
-        self.requests_campaigns_view = self.requests_table + '/_design/_designDoc/_view/campaigns'
-        self.requests_prepid_view = self.requests_table + '/_design/_designDoc/_view/prepids'
-        self.requests_type_view = self.requests_table + '/_design/_designDoc/_view/types'
+        self.workflows_table = self.database_url + '/requests'
+        self.workflows_output_datasets_view = self.workflows_table + '/_design/_designDoc/_view/outputDatasets'
+        self.workflows_campaigns_view = self.workflows_table + '/_design/_designDoc/_view/campaigns'
+        self.workflows_prepid_view = self.workflows_table + '/_design/_designDoc/_view/prepids'
+        self.workflows_type_view = self.workflows_table + '/_design/_designDoc/_view/types'
         self.settings_table = self.database_url + '/settings'
         self.auth_header = str(open('/home/jrumsevi/stats2_auth.txt', "r").read()).replace('\n', '')
 
-    def update_request(self, request, update_timestamp=True):
+    def update_workflow(self, workflow, update_timestamp=True):
         try:
             if update_timestamp:
-                request['LastUpdate'] = int(time.time())
+                workflow['LastUpdate'] = int(time.time())
 
-            url = self.requests_table + '/' + request['_id']
-            self.make_request(url, request, 'PUT')
+            url = self.workflows_table + '/' + workflow['_id']
+            self.make_request(url, workflow, 'PUT')
         except HTTPError as err:
             self.logger.error(str(err))
 
-    def delete_request(self, request_name):
-        request = self.get_request(request_name)
-        if request is not None and request.get('_rev') is not None:
-            rev = request['_rev']
-            url = '%s/%s?rev=%s' % (self.requests_table, request_name, rev)
+    def delete_workflow(self, workflow_name):
+        workflow = self.get_workflow(workflow_name)
+        if workflow is not None and workflow.get('_rev') is not None:
+            rev = workflow['_rev']
+            url = '%s/%s?rev=%s' % (self.workflows_table, workflow_name, rev)
             self.make_request(url, method='DELETE')
 
-    def get_request_count(self):
-        return self.make_request(self.requests_table)['doc_count']
+    def get_workflow_count(self):
+        return self.make_request(self.workflows_table)['doc_count']
 
-    def get_request(self, request_name):
-        url = self.requests_table + '/' + request_name
+    def get_workflow(self, workflow_name):
+        url = self.workflows_table + '/' + workflow_name
         try:
             return self.make_request(url)
         except HTTPError as err:
@@ -49,8 +49,8 @@ class Database:
 
             return None
 
-    def get_requests_with_prepid(self, prepid, page=0, page_size=PAGE_SIZE, include_docs=False):
-        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.requests_prepid_view,
+    def get_workflows_with_prepid(self, prepid, page=0, page_size=PAGE_SIZE, include_docs=False):
+        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_prepid_view,
                                                                 prepid,
                                                                 page_size,
                                                                 page * page_size,
@@ -61,8 +61,8 @@ class Database:
         else:
             return [x['id'] for x in rows]
 
-    def get_requests_with_dataset(self, dataset, page=0, page_size=PAGE_SIZE, include_docs=False):
-        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.requests_output_datasets_view,
+    def get_workflows_with_dataset(self, dataset, page=0, page_size=PAGE_SIZE, include_docs=False):
+        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_output_datasets_view,
                                                                 dataset,
                                                                 page_size,
                                                                 page * page_size,
@@ -73,8 +73,8 @@ class Database:
         else:
             return [x['id'] for x in rows]
 
-    def get_requests_with_campaign(self, campaign, page=0, page_size=PAGE_SIZE, include_docs=False):
-        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.requests_campaigns_view,
+    def get_workflows_with_campaign(self, campaign, page=0, page_size=PAGE_SIZE, include_docs=False):
+        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_campaigns_view,
                                                                 campaign,
                                                                 page_size,
                                                                 page * page_size,
@@ -85,9 +85,9 @@ class Database:
         else:
             return [x['id'] for x in rows]
 
-    def get_requests_with_type(self, request_type, page=0, page_size=PAGE_SIZE, include_docs=False):
-        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.requests_type_view,
-                                                                request_type,
+    def get_workflows_with_type(self, workflow_type, page=0, page_size=PAGE_SIZE, include_docs=False):
+        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_type_view,
+                                                                workflow_type,
                                                                 page_size,
                                                                 page * page_size,
                                                                 'True' if include_docs else 'False')
@@ -97,8 +97,8 @@ class Database:
         else:
             return [x['id'] for x in rows]
 
-    def get_requests(self, page=0, page_size=PAGE_SIZE, include_docs=False):
-        url = '%s/_all_docs?limit=%d&skip=%d&include_docs=%s' % (self.requests_table,
+    def get_workflows(self, page=0, page_size=PAGE_SIZE, include_docs=False):
+        url = '%s/_all_docs?limit=%d&skip=%d&include_docs=%s' % (self.workflows_table,
                                                                  page_size,
                                                                  page * page_size,
                                                                  'True' if include_docs else 'False')

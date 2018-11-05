@@ -10,76 +10,83 @@
   <body>
     <a class="title" href="/">Stats<sup class="red">2</sup></a>
     <ul>
-      <li>Total requests in Stats<sup class="red">2</sup>: {{ total_requests }}</li>
+      <li>Total workflows in Stats<sup class="red">2</sup>: {{ total_workflows }}</li>
       <li><a href="http://instance3:8080/job/Stats2%20Update/lastBuild/">Last Jenkins job</a></li>
       <li><a href="https://github.com/justinasr/Stats2/tree/dev">GitHub</a></li>
       <li>Update time:<a href="http://instance3:8080/job/Stats2%20Update/buildTimeTrend"><br><img style="width:180px" src="http://instance3:8080/job/Stats2%20Update/buildTimeGraph/png"/></a></li>
     </ul>
     <table class="table" style="font-size: 12px">
       <tr style="font-size: 14px">
-        <th>Request</th>
+        <th>Workflow</th>
         <th>Links</th>
         <th>Total/Done events</th>
         <th>PrepID</th>
+        <th>Requests</th>
         <th>Campaigns</th>
         <th>Output datasets</th>
       </tr>
-      {% for request in requests %}
+      {% for workflow in workflows %}
         <tr>
-          <td>Name:&nbsp;<a href="/0?request_name={{ request.RequestName }}">{{ request.RequestName }}</a><br>Type: <a href="/0?type={{ request.RequestType }}">{{ request.RequestType }}</a><br>Priority: {{ request.RequestPriority }}<br>Last update: {{ request.LastUpdate | safe }}</td>
+          <td>Name:&nbsp;<a href="/0?workflow_name={{ workflow.RequestName }}">{{ workflow.RequestName }}</a><br>Type: <a href="/0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a><br>Priority: {{ workflow.RequestPriority }}<br>Last update: {{ workflow.LastUpdate | safe }}</td>
           <td>
             <ul class="no-bullets">
-              <li><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request.PrepID | replace('task_', '') }}">McM</a></li>
-              <li><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a></li>
-              <li><a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ request.RequestName }}">ReqMgr2&nbsp;JSON</a></li>
-              <!-- <li><a href="/update/{{ request._id }}">Update&nbsp;Now</a></li> -->
-              <li><a href="/view_json/{{ request._id }}">View&nbsp;JSON</a></li>
-              <li><a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&RN={{ request.RequestName }}">Request&nbsp;in&nbsp;Stats</a></li>
-              <li><a href="/0?request_name={{ request.RequestName }}&check=1">Check&nbsp;with&nbsp;Stats</a></li>
+              <li><a href="https://cms-pdmv.cern.ch/mcm/workflows?prepid={{ workflow.PrepID | replace('task_', '') }}">McM</a></li>
+              <li><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ workflow.PrepID | replace('task_', '') }}">Historical&nbsp;pMp</a></li>
+              <li><a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ workflow.RequestName }}">ReqMgr2&nbsp;JSON</a></li>
+              <li><a href="/update/{{ workflow._id }}">Update&nbsp;Now</a></li>
+              <li><a href="/view_json/{{ workflow._id }}">View&nbsp;JSON</a></li>
+              <li><a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&RN={{ workflow.RequestName }}">Workflow&nbsp;in&nbsp;Stats</a></li>
+              <li><a href="/0?workflow_name={{ workflow.RequestName }}&check=1">Check&nbsp;with&nbsp;Stats</a></li>
             </ul>
           </td>
           <td>
             <ul class="no-bullets">
-              {% if request.TotalEventsEqual %}
-                {% if request.TotalEventsEqual == 'equal' %}
-                  <li><span title="Number is the same in Stats and Stats2" class="green">Total:&nbsp;{{ request.TotalEvents }}</span></li>
-                {% elif request.TotalEventsEqual == 'not_equal' %}
-                  <li><span title="Number is different in Stats and Stats2" class="red">Total&nbsp;in&nbsp;Stats<sup>2</sup>&nbsp;{{ request.TotalEvents }}</span></li>
-                  <li><span title="Number is different in Stats and Stats2" class="red">Total&nbsp;in&nbsp;Stats&nbsp;{{ request.TotalEventsStats }}</span></li>
-                {% elif request.TotalEventsEqual == 'not_found' %}
-                  <li><span title="Cannot find request in Stats" class="red">Total:&nbsp;{{ request.TotalEvents }}</span></li>
+              {% if workflow.TotalEventsEqual %}
+                {% if workflow.TotalEventsEqual == 'equal' %}
+                  <li><span title="Number is the same in Stats and Stats2" class="green">Total:&nbsp;{{ workflow.TotalEvents }}</span></li>
+                {% elif workflow.TotalEventsEqual == 'not_equal' %}
+                  <li><span title="Number is different in Stats and Stats2" class="red">Total&nbsp;in&nbsp;Stats<sup>2</sup>&nbsp;{{ workflow.TotalEvents }}</span></li>
+                  <li><span title="Number is different in Stats and Stats2" class="red">Total&nbsp;in&nbsp;Stats&nbsp;{{ workflow.TotalEventsStats }}</span></li>
+                {% elif workflow.TotalEventsEqual == 'not_found' %}
+                  <li><span title="Cannot find workflow in Stats" class="red">Total:&nbsp;{{ workflow.TotalEvents }}</span></li>
                 {% endif %}
-                {% if request.DonePercent == request.OldCompletion %}
-                  <li><span title="Completion is the same in Stats and Stats2" class="green">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
+                {% if workflow.DonePercent == workflow.OldCompletion %}
+                  <li><span title="Completion is the same in Stats and Stats2" class="green">Stats:&nbsp;{{ workflow.OldCompletion }}%</span></li>
                 {% else %}
-                  <li><span title="Completion is different in Stats and Stats2" class="red">Stats:&nbsp;{{ request.OldCompletion }}%</span></li>
+                  <li><span title="Completion is different in Stats and Stats2" class="red">Stats:&nbsp;{{ workflow.OldCompletion }}%</span></li>
                 {% endif %}
               {% else %}
-                <li>Total:&nbsp;{{ request.TotalEvents }}</li>
+                <li>Total:&nbsp;{{ workflow.TotalEvents }}</li>
               {% endif %}
-              <li>Done:&nbsp;{{ request.DoneEvents }}&nbsp;({{ request.DonePercent }}%)</li>
+              <li>Done:&nbsp;{{ workflow.DoneEvents }}&nbsp;({{ workflow.DonePercent }}%)</li>
               <li>
                 <div class="gray-bar">
-                  {% if request.LastDatasetType == 'VALID' %}
-                    <div style="width: {{ request.DonePercent }}%;" class="done-bar"></div>
+                  {% if workflow.LastDatasetType == 'VALID' %}
+                    <div style="width: {{ workflow.DonePercent }}%;" class="done-bar"></div>
                   {% else %}
-                    <div style="width: {{ request.DonePercent }}%;" class="open-bar"></div>
+                    <div style="width: {{ workflow.DonePercent }}%;" class="open-bar"></div>
                   {% endif %}
                 </div>
               </li>
             </ul>
           </td>
-          <td><a href="/0?prepid={{ request.PrepID }}">{{ request.PrepID | replace("task_", "") }}</a></td>
+          <td><a href="/0?prepid={{ workflow.PrepID }}">{{ workflow.PrepID | replace("task_", "") }}</a></td>
           <td>
             <ul class="no-bullets">
-              {% for campaign in request.Campaigns %}
+              {% for request in workflow.Requests %}
+                <li><a href="/0?request={{ request }}">{{ request }}</a></li>
+              {% endfor %}
+          </td>
+          <td>
+            <ul class="no-bullets">
+              {% for campaign in workflow.Campaigns %}
                 <li><a href="/0?campaign={{ campaign }}">{{ campaign }}</a></li>
               {% endfor %}
           </td>
           <td>
             <ul class="no-bullets">
-              {% for dataset in request.OutputDatasets %}
-                <li>{% if dataset == request.LastDataset %}<b>{% endif %}<a href="/0?dataset={{ dataset }}">{{ dataset }}</a>{% if dataset == request.LastDataset %}</b>{% endif %}&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">Stats</a>&nbsp;<a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset }}">DAS</a></li>
+              {% for dataset in workflow.OutputDatasets %}
+                <li>{% if dataset == workflow.LastDataset %}<b>{% endif %}<a href="/0?dataset={{ dataset }}">{{ dataset }}</a>{% if dataset == workflow.LastDataset %}</b>{% endif %}&nbsp;<a href="https://cms-pdmv.cern.ch/stats/?ResToPrint=50&Page=1&Col=15-20-7-11-2-8-4-5-23-9&DN={{ dataset }}">Stats</a>&nbsp;<a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset }}">DAS</a></li>
               {% endfor %}
             </ul>
           </td>

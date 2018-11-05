@@ -12,11 +12,11 @@ app = Flask(__name__,
 api = Api(app)
 
 
-def check_with_old_stats(requests):
+def check_with_old_stats(workflows):
     """
     Delete this if Stats2 is used as prod service
     """
-    for req in requests:
+    for req in workflows:
         stats_url = "http://vocms074:5984/stats/%s" % req['_id']
         try:
             stats_req = make_simple_request(stats_url)
@@ -37,37 +37,37 @@ def index(page=0):
     prepid = request.args.get('prepid')
     dataset = request.args.get('dataset')
     campaign = request.args.get('campaign')
-    request_type = request.args.get('type')
-    request_name = request.args.get('request_name')
+    workflow_type = request.args.get('type')
+    workflow_name = request.args.get('workflow_name')
     check = request.args.get('check')
     if page < 0:
         page = 0
 
-    if request_name is not None:
-        req = database.get_request(request_name)
+    if workflow_name is not None:
+        req = database.get_workflow(workflow_name)
         if req is not None:
-            requests = [req]
+            workflows = [req]
         else:
-            requests = []
+            workflows = []
 
     else:
         if prepid is not None:
-            requests = database.get_requests_with_prepid(prepid, page=page, include_docs=True)
+            workflows = database.get_workflows_with_prepid(prepid, page=page, include_docs=True)
         elif dataset is not None:
-            requests = database.get_requests_with_dataset(dataset, page=page, include_docs=True)
+            workflows = database.get_workflows_with_dataset(dataset, page=page, include_docs=True)
         elif campaign is not None:
-            requests = database.get_requests_with_campaign(campaign, page=page, include_docs=True)
-        elif request_type is not None:
-            requests = database.get_requests_with_type(request_type, page=page, include_docs=True)
+            workflows = database.get_workflows_with_campaign(campaign, page=page, include_docs=True)
+        elif workflow_type is not None:
+            workflows = database.get_workflows_with_type(workflow_type, page=page, include_docs=True)
         else:
-            requests = database.get_requests(page=page, include_docs=True)
+            workflows = database.get_workflows(page=page, include_docs=True)
 
     if check is not None:
-        check_with_old_stats(requests)
+        check_with_old_stats(workflows)
 
-    pages = [page, page > 0, database.PAGE_SIZE == len(requests)]
-    requests = list(filter(lambda req: '_design' not in req['_id'], requests))
-    for req in requests:
+    pages = [page, page > 0, database.PAGE_SIZE == len(workflows)]
+    workflows = list(filter(lambda req: '_design' not in req['_id'], workflows))
+    for req in workflows:
         req['DonePercent'] = '0.00'
         req['OpenPercent'] = '0.00'
         req['LastDatasetType'] = 'NONE'
@@ -100,33 +100,39 @@ def index(page=0):
             req['DonePercent'] = '%.2f' % (done_events / total_events * 100.0)
 
     return render_template('index.html',
-                           requests=requests,
-                           total_requests=database.get_request_count(),
+                           workflows=workflows,
+                           total_workflows=database.get_workflow_count(),
                            pages=pages,
                            query=request.query_string.decode('utf-8'))
 
 
-@app.route('/get/<string:request_name>')
-def get_one(request_name):
+@app.route('/update/<string:request_name>')	
+def update(request_name):	
+    StatsUpdate().perform_update(request_name=request_name)	
+    return redirect("/1?request_name=" + request_name, code=302)
+
+
+@app.route('/get/<string:workflow_name>')
+def get_one(workflow_name):
     database = Database()
-    request = database.get_request(request_name)
-    if request is None:
+    workflow = database.get_workflow(workflow_name)
+    if workflow is None:
         response = make_response("{}", 404)
     else:
-        response = make_response(json.dumps(request), 200)
+        response = make_response(json.dumps(workflow), 200)
 
     response.headers['Content-Type'] = 'application/json'
     return response
 
 
-@app.route('/view_json/<string:request_name>')
-def get_nice_json(request_name):
+@app.route('/view_json/<string:workflow_name>')
+def get_nice_json(workflow_name):
     database = Database()
-    request = database.get_request(request_name)
-    if request is None:
+    workflow = database.get_workflow(workflow_name)
+    if workflow is None:
         response = make_response("{}", 404)
     else:
-        response = make_response(json.dumps(request, indent=4, sort_keys=True), 200)
+        response = make_response(json.dumps(workflow, indent=4, sort_keys=True), 200)
 
     response.headers['Content-Type'] = 'application/json'
     return response
