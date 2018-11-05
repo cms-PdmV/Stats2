@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, make_response
+from flask import Flask, render_template, request, make_response, redirect
 from flask_restful import Api
 from couchdb_database import Database
 from utils import setup_file_logging, make_simple_request
+from stats_update import StatsUpdate
 import json
 import time
 
@@ -106,10 +107,10 @@ def index(page=0):
                            query=request.query_string.decode('utf-8'))
 
 
-@app.route('/update/<string:request_name>')	
-def update(request_name):	
-    StatsUpdate().perform_update(request_name=request_name)	
-    return redirect("/1?request_name=" + request_name, code=302)
+@app.route('/update/<string:workflow_name>')	
+def update(workflow_name):	
+    StatsUpdate().perform_update(workflow_name=workflow_name)	
+    return redirect("/0?workflow_name=" + workflow_name, code=302)
 
 
 @app.route('/get/<string:workflow_name>')
