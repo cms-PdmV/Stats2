@@ -82,8 +82,8 @@ def index(page=0):
         if len(req['EventNumberHistory']) == 0:
             continue
 
-        last_dataset = req['OutputDatasets'][-1:][0]
-        last_history = req['EventNumberHistory'][-1:][0]
+        last_dataset = req['OutputDatasets'][-1]
+        last_history = req['EventNumberHistory'][-1]
         if last_dataset not in last_history['Datasets']:
             continue
 

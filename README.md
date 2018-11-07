@@ -113,8 +113,10 @@ git clone https://github.com/justinasr/Stats2.git
 ```
 ## Running it
 ### Launch the website
-Launch the main.py
+Provide links to certificate files (for Update now function) and launch the main.py
 ```
+export USERCRT=/.../user.crt.pem
+export USERKEY=/.../user.key.pem
 python3 main.py &
 ```
 ### Perform update
