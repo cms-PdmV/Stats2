@@ -121,8 +121,6 @@ class StatsUpdate():
         """
         Action to update event count for workflow.
         """
-        self.logger.info('Not recalculating %s' % (workflow_name))
-        return
         recalc_start = time.time()
         self.logger.info('Updating event count for %s' % (workflow_name))
         workflow = self.database.get_workflow(workflow_name)
