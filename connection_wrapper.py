@@ -18,6 +18,10 @@ class ConnectionWrapper():
 
     def init_connection(self, url):
         if self.cert_file is None or self.key_file is None:
+            self.cert_file = os.getenv('USERCRT', None)
+            self.key_file = os.getenv('USERKEY', None)
+
+        if self.cert_file is None or self.key_file is None:
             raise Exception('Missing USERCRT or USERKEY environment variables')
             return None
 
