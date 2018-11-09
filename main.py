@@ -40,6 +40,7 @@ def index(page=0):
     campaign = request.args.get('campaign')
     workflow_type = request.args.get('type')
     workflow_name = request.args.get('workflow_name')
+    processing_string = request.args.get('processing_string')
     check = request.args.get('check')
     if page < 0:
         page = 0
@@ -60,6 +61,8 @@ def index(page=0):
             workflows = database.get_workflows_with_campaign(campaign, page=page, include_docs=True)
         elif workflow_type is not None:
             workflows = database.get_workflows_with_type(workflow_type, page=page, include_docs=True)
+        elif processing_string is not None:
+            workflows = database.get_workflows_with_processing_string(processing_string, page=page, include_docs=True)
         else:
             workflows = database.get_workflows(page=page, include_docs=True)
 

@@ -100,6 +100,14 @@ function (doc) {
   }
 }
 ```
+Processing strings (name:`processingStrings`):
+```
+function (doc) {
+  if (doc.ProcessingString && doc.ProcessingString.length > 0) {
+    emit(doc.ProcessingString, doc.RequestName);
+  }
+}
+```
 
 ### Install dependencies
 Install flask and flask_restful

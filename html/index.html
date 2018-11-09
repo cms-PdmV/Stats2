@@ -27,7 +27,14 @@
       </tr>
       {% for workflow in workflows %}
         <tr>
-          <td>Name:&nbsp;<a href="/0?workflow_name={{ workflow.RequestName }}">{{ workflow.RequestName }}</a><br>Type: <a href="/0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a><br>Priority: {{ workflow.RequestPriority }}<br>Last update: {{ workflow.LastUpdate | safe }}</td>
+          <td>Name:&nbsp;<a href="/0?workflow_name={{ workflow.RequestName }}">{{ workflow.RequestName }}</a><br>
+              Type: <a href="/0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a><br>
+              Priority: {{ workflow.RequestPriority }}<br>
+              Last update: {{ workflow.LastUpdate | safe }}<br>
+              {% if workflow.ProcessingString | length > 0 %}
+                  Processing string: <a href="/0?processing_string={{ workflow.ProcessingString }}">{{ workflow.ProcessingString }}</a>
+              {% endif %}
+          </td>
           <td>
             <ul class="no-bullets">
               <li><a href="https://cms-pdmv.cern.ch/mcm/workflows?prepid={{ workflow.PrepID | replace('task_', '') }}">McM</a></li>
