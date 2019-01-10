@@ -146,17 +146,18 @@ class StatsUpdate():
         expected_events = self.get_expected_events_with_dict(wf_dict)
         campaigns = self.get_campaigns_from_workflow(wf_dict)
         requests = self.get_requests_from_workflow(wf_dict)
-        wf_dict = pick_attributes(wf_dict, ['AcquisitionEra',
-                                            'InputDataset',
-                                            'OutputDatasets',
-                                            'PrepID',
-                                            'ProcessingString',
-                                            'RequestName',
-                                            'RequestPriority',
-                                            'RequestTransition',
-                                            'RequestType',
-                                            'SizePerEvent',
-                                            'TimePerEvent'])
+        attributes = ['AcquisitionEra',
+                      'InputDataset',
+                      'OutputDatasets',
+                      'PrepID',
+                      'ProcessingString',
+                      'RequestName',
+                      'RequestPriority',
+                      'RequestTransition',
+                      'RequestType',
+                      'SizePerEvent',
+                      'TimePerEvent']
+        wf_dict = pick_attributes(wf_dict, attributes)
         wf_dict['RequestTransition'] = [{'Status': tr['Status'],
                                          'UpdateTime': tr['UpdateTime']} for tr in wf_dict.get('RequestTransition', [])]
         wf_dict['_id'] = workflow_name
@@ -166,6 +167,9 @@ class StatsUpdate():
         wf_dict['OutputDatasets'] = self.sort_datasets(wf_dict['OutputDatasets'])
         wf_dict['EventNumberHistory'] = []
         wf_dict['RequestPriority'] = int(wf_dict.get('RequestPriority', 0))
+        if 'ProcessingString' in wf_dict and not isinstance(wf_dict['ProcessingString'], str):
+            del wf_dict['ProcessingString']
+
         return wf_dict
 
     def get_event_count_from_dbs(self, dataset_name):

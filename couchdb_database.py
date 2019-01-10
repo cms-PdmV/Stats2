@@ -17,6 +17,7 @@ class Database:
         self.workflows_prepid_view = self.workflows_table + '/_design/_designDoc/_view/prepids'
         self.workflows_type_view = self.workflows_table + '/_design/_designDoc/_view/types'
         self.workflows_processing_string_view = self.workflows_table + '/_design/_designDoc/_view/processingStrings'
+        self.workflows_requests_view = self.workflows_table + '/_design/_designDoc/_view/requests'
         self.settings_table = self.database_url + '/settings'
         self.auth_header = str(open('/home/jrumsevi/stats2_auth.txt', "r").read()).replace('\n', '')
 
@@ -101,6 +102,18 @@ class Database:
     def get_workflows_with_processing_string(self, workflow_processing_string, page=0, page_size=PAGE_SIZE, include_docs=False):
         url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_processing_string_view,
                                                                 workflow_processing_string,
+                                                                page_size,
+                                                                page * page_size,
+                                                                'True' if include_docs else 'False')
+        rows = self.make_request(url)['rows']
+        if include_docs:
+            return [x['doc'] for x in rows]
+        else:
+            return [x['id'] for x in rows]
+
+    def get_workflows_with_request(self, request_name, page=0, page_size=PAGE_SIZE, include_docs=False):
+        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_requests_view,
+                                                                request_name,
                                                                 page_size,
                                                                 page * page_size,
                                                                 'True' if include_docs else 'False')
