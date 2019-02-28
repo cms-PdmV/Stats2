@@ -32,8 +32,9 @@
               Priority: {{ workflow.RequestPriority }}<br>
               Last update: {{ workflow.LastUpdate | safe }}<br>
               {% if workflow.ProcessingString | length > 0 %}
-                  Processing string: <a href="/0?processing_string={{ workflow.ProcessingString }}">{{ workflow.ProcessingString }}</a>
+                  Processing string: <a href="/0?processing_string={{ workflow.ProcessingString }}">{{ workflow.ProcessingString }}</a><br>
               {% endif %}
+              Last status: {{ workflow.LastStatus }}
           </td>
           <td>
             <ul class="no-bullets">

@@ -41,7 +41,7 @@ def setup_file_logging():
     # Max log file size - 5Mb
     max_log_file_size = 1024 * 1024 * 5
     max_log_file_count = 5
-    log_file_name = 'stats_update_logs.log'
+    log_file_name = 'logs.log'
     logger = logging.getLogger('logger')
     logger.setLevel(logging.INFO)
     handler = handlers.RotatingFileHandler(log_file_name,

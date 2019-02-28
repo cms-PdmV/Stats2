@@ -16,6 +16,7 @@ class StatsUpdate():
     def __init__(self):
         self.logger = logging.getLogger('logger')
         self.database = Database()
+        self.dataset_info_cache = {}
 
     def perform_update(self, workflow_name=None):
         """
@@ -147,6 +148,7 @@ class StatsUpdate():
         campaigns = self.get_campaigns_from_workflow(wf_dict)
         requests = self.get_requests_from_workflow(wf_dict)
         attributes = ['AcquisitionEra',
+                      'CMSSWVersion',
                       'InputDataset',
                       'OutputDatasets',
                       'PrepID',
@@ -164,24 +166,47 @@ class StatsUpdate():
         wf_dict['TotalEvents'] = expected_events
         wf_dict['Campaigns'] = campaigns
         wf_dict['Requests'] = requests
-        wf_dict['OutputDatasets'] = self.sort_datasets(wf_dict['OutputDatasets'])
+        wf_dict['OutputDatasets'] = self.sort_datasets(self.flat_list(wf_dict['OutputDatasets']))
         wf_dict['EventNumberHistory'] = []
         wf_dict['RequestPriority'] = int(wf_dict.get('RequestPriority', 0))
         if 'ProcessingString' in wf_dict and not isinstance(wf_dict['ProcessingString'], str):
             del wf_dict['ProcessingString']
 
+        if 'PrepID' in wf_dict and wf_dict['PrepID'] is None:
+            del wf_dict['PrepID']
+
         return wf_dict
+
+    def flat_list(self, given_list):
+        """
+        Make list of lists to flat list
+        """
+        new_list = []
+        for element in given_list:
+            if not isinstance(element, list):
+                new_list.append(element)
+            else:
+                new_list += self.flat_list(element)
+
+        return new_list
 
     def get_event_count_from_dbs(self, dataset_name):
         """
         Get event count for specified dataset from DBS.
         """
+        if dataset_name in self.dataset_info_cache:
+            num_event = self.dataset_info_cache[dataset_name]
+            self.logger.info('Found number of events (%s) for %s in cache' % (num_event, dataset_name))
+            return num_event
+
         query_url = '/dbs/prod/global/DBSReader/filesummaries?dataset=%s' % (dataset_name)
         filesummaries = make_cmsweb_request(query_url)
-        if len(filesummaries) == 0:
-            return 0
+        num_event = 0
+        if len(filesummaries) != 0:
+            num_event = int(filesummaries[0]['num_event'])
 
-        return int(filesummaries[0]['num_event'])
+        self.dataset_info_cache[dataset_name] = num_event
+        return num_event
 
     def get_new_history_entry(self, wf_dict, depth=0):
         """

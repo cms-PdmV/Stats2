@@ -82,6 +82,11 @@ def index(page=0):
         req['DoneEvents'] = '0'
         req['LastUpdate'] = time.strftime('%Y&#8209;%m&#8209;%d&nbsp;%H:%M:%S', time.localtime(req['LastUpdate']))
 
+        if len(req.get('RequestTransition', [])) > 0:
+            req['LastStatus'] = req['RequestTransition'][-1].get('Status', '-')
+        else:
+            req['LastStatus'] = '-'
+
         if len(req['OutputDatasets']) == 0:
             continue
 
