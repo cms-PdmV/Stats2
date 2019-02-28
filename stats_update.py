@@ -53,12 +53,17 @@ class StatsUpdate():
             except Exception as e:
                 self.logger.error('Exception while deleting %s:%s' % (workflow_name, str(e)))
 
+        previously_crashed_workflows = self.get_list_of_previously_crashed_workflows()
+        self.logger.info('Have %d workflows that crashed during last update' % (len(previously_crashed_workflows)))
+        changed_workflows = set(changed_workflows).union(set(previously_crashed_workflows))
         self.logger.info('Will update %d workflows' % (len(changed_workflows)))
         for index, workflow_name in enumerate(changed_workflows):
             try:
                 self.logger.info('Will update %d/%d workflow' % (index + 1, len(changed_workflows)))
                 self.update_one(workflow_name)
+                self.remove_from_list_of_crashed_workflows(workflow_name)
             except Exception as e:
+                self.add_to_list_of_crashed_workflows(workflow_name)
                 self.logger.error('Exception while updating %s:%s\nTraceback:%s' % (workflow_name,
                                                                                     str(e),
                                                                                     traceback.format_exc()))
@@ -74,7 +79,9 @@ class StatsUpdate():
             try:
                 self.logger.info('Will update event count for %d/%d' % (index + 1, len(workflows_to_recalculate)))
                 self.recalculate_one(workflow_name)
+                self.remove_from_list_of_crashed_workflows(workflow_name)
             except Exception as e:
+                self.add_to_list_of_crashed_workflows(workflow_name)
                 self.logger.error('Exception while updating event count %s:%s\nTraceback:%s' % (workflow_name,
                                                                                                 str(e),
                                                                                                 traceback.format_exc()))
@@ -106,9 +113,15 @@ class StatsUpdate():
         wf_dict['_rev'] = wf_dict_old['_rev']
         wf_dict['EventNumberHistory'] = wf_dict_old.get('EventNumberHistory', [])
         wf_dict['OutputDatasets'] = self.sort_datasets(wf_dict['OutputDatasets'])
-        self.database.update_workflow(wf_dict)
+        old_wf_dict_string = json.dumps(wf_dict_old, sort_keys=True)
+        new_wf_dict_string = json.dumps(wf_dict, sort_keys=True)
         update_end = time.time()
-        self.logger.info('Updated %s in %.3fs' % (workflow_name, (update_end - update_start)))
+        if old_wf_dict_string != new_wf_dict_string:
+            self.database.update_workflow(wf_dict)
+            self.logger.info('Updated %s in %.3fs' % (workflow_name, (update_end - update_start)))
+            self.trigger_outside(workflow_name)
+        else:
+            self.logger.info('Did not update %s because it did not change. Time: %.3fs' % (workflow_name, (update_end - update_start)))
 
     def delete_one(self, workflow_name):
         """
@@ -134,9 +147,10 @@ class StatsUpdate():
         recalc_end = time.time()
         if added_history_entry:
             self.database.update_workflow(workflow)
-            self.logger.info('Updated event count for %s in %fs' % (workflow_name, (recalc_end - recalc_start)))
+            self.logger.info('Updated event count for %s in %.3fs' % (workflow_name, (recalc_end - recalc_start)))
+            self.trigger_outside(workflow_name)
         else:
-            self.logger.info('Did not update event count for %s' % (workflow_name))
+            self.logger.info('Did not update event count for %s because it did not change. Time: %.3fs' % (workflow_name, (recalc_end - recalc_start)))
 
     def get_new_dict_from_reqmgr2(self, workflow_name):
         """
@@ -533,6 +547,38 @@ class StatsUpdate():
             wf_dict['EventNumberHistory'].sort(key=sort_by_time)
         except Exception as ex:
             self.logger.error(ex)
+
+    def get_list_of_previously_crashed_workflows(self):
+        """
+        Return list of workflows that failed during previous update
+        """
+        workflows = self.database.get_setting('failed_workflows', [])
+        return list(set(workflows))
+
+    def remove_from_list_of_crashed_workflows(self, workflow_name):
+        """
+        Remove workflow from list of failed workflows that should be updated during next update
+        """
+        workflows = self.get_list_of_previously_crashed_workflows()
+        if workflow_name in set(workflows):
+            workflows = [x for x in workflows if x != workflow_name]
+            self.database.set_setting('failed_workflows', workflows)
+
+    def add_to_list_of_crashed_workflows(self, workflow_name):
+        """
+        Add workflow to list of failed workflows that should be updated during next update
+        """
+        workflows = self.get_list_of_previously_crashed_workflows()
+        if workflow_name not in set(workflows):
+            workflows.append(workflow_name)
+            self.database.set_setting('failed_workflows', workflows)
+
+    def trigger_outside(self, workflow_name):
+        """
+        Trigger something outside (McM) when workflow is updated
+        """
+        self.logger.info('Triggerring outside for %s' % (workflow_name))
+        pass
 
 
 def main():

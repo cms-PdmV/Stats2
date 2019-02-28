@@ -3,6 +3,7 @@ import logging
 from urllib.request import Request, urlopen
 from connection_wrapper import ConnectionWrapper
 from logging import handlers
+import time
 
 
 __connection_wrappers = {}
@@ -17,7 +18,14 @@ def make_cmsweb_request(query_url, data=None):
         connection_wrapper = ConnectionWrapper(host_url)
         __connection_wrappers[host_url] = connection_wrapper
 
-    response = connection_wrapper.api('GET' if data is None else 'POST', query_url, data)
+    method = 'GET' if data is None else 'POST'
+    logger = logging.getLogger('logger')
+    request_start_time = time.time()
+    response = connection_wrapper.api(method, query_url, data)
+    request_finish_time = time.time()
+    logger.info('%s request to %s took %.3fs' % (method,
+                                                 query_url,
+                                                 request_finish_time - request_start_time))
     return json.loads(response.decode('utf-8'))
 
 
