@@ -19,7 +19,6 @@ class Database:
         self.workflows_processing_string_view = self.workflows_table + '/_design/_designDoc/_view/processingStrings'
         self.workflows_requests_view = self.workflows_table + '/_design/_designDoc/_view/requests'
         self.settings_table = self.database_url + '/settings'
-        self.auth_header = str(open('/home/jrumsevi/stats2_auth.txt', "r").read()).replace('\n', '')
 
     def update_workflow(self, workflow, update_timestamp=True):
         try:
@@ -162,6 +161,5 @@ class Database:
             data = data.encode("utf-8")
 
         req.add_header('Content-Type', 'application/json')
-        req.add_header('Authorization', self.auth_header)
         response = json.loads(urlopen(req, data=data).read().decode('utf-8'))
         return response

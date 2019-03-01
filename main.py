@@ -5,6 +5,7 @@ from utils import setup_file_logging, make_simple_request
 from stats_update import StatsUpdate
 import json
 import time
+import argparse
 
 
 app = Flask(__name__,
@@ -152,11 +153,31 @@ def get_nice_json(workflow_name):
 
 def run_flask():
     setup_file_logging()
+    parser = argparse.ArgumentParser(description='Stats2 update')
+    parser.add_argument('--ssl_cert',
+                        help='Path to a certificate for HTTPS')
+    parser.add_argument('--ssl_key',
+                        help='Path to a certificate for HTTPS')
+    parser.add_argument('--port',
+                        help='Port on which website will be listening. Default 80 if no ssl_cert and not ssl_key key is specified, 443 otherwise')
+
+    args = vars(parser.parse_args())
+    ssl_cert = args.get('ssl_cert', None)
+    ssl_key = args.get('ssl_key', None)
+    port = args.get('port', None)
+    if ssl_cert and ssl_key:
+        ssl_context = (ssl_cert, ssl_key)
+        if not port:
+            port = 443
+    else:
+        ssl_context = None
+        if not port:
+            port = 80
+
     app.run(host='0.0.0.0',
-            port=443,
-            debug=True,
+            port=port,
             threaded=True,
-            ssl_context=('/home/jrumsevi/localhost.crt', '/home/jrumsevi/localhost.key'))
+            ssl_context=ssl_context)
 
 
 if __name__ == '__main__':
