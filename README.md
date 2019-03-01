@@ -121,11 +121,18 @@ git clone https://github.com/justinasr/Stats2.git
 ```
 ## Running it
 ### Launch the website
-Provide links to certificate files (for Update now function) and launch the main.py
+Provide links to grid certificate files (for Update now function) and launch the main.py
 ```
 export USERCRT=/.../user.crt.pem
 export USERKEY=/.../user.key.pem
+python3 main.py [--ssl_cert] [--ssl_key] [--port]
+```
+There are three available arguments when launching a website: `--ssl_cert`, `--ssl_key` and `--port`. If paths to certificates (certificate and key respectively) are provided in ssl_cert and ssl_key then website launches with ssl and port is set to 443. If not, then website without ssl is launched on port 80. Port settings can be overwritten with `--port`.
+```
 python3 main.py &
+python3 main.py --ssl_cert /home/ssl.crt --ssl_key /home/ssl.key &
+python3 main.py --ssl_cert /home/ssl.crt --ssl_key /home/ssl.key --port 8000 &
+python3 main.py --port 8000 &
 ```
 ### Perform update
 Provide the grid certificate and key (for cmsweb interaction) and start the initial update
