@@ -57,5 +57,5 @@ class ConnectionWrapper():
                 # most likely connection terminated
                 self.refresh_connection(self.host_url)
 
-        self.logger.error('Connection wrapper failed after %d attempts' % (self.__MAX_CONNECTION_ATTEMPTS))
+        self.logger.error('Connection wrapper failed after %d attempts' % (self.connection_attempts))
         return None
