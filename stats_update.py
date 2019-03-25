@@ -238,14 +238,24 @@ class StatsUpdate():
             dataset_name = dbs_dataset['dataset']
             history_entry['Datasets'][dataset_name] = {'Type': dbs_dataset['dataset_access_type'],
                                                        'Events': self.get_event_count_from_dbs(dataset_name)}
+            self.logger.info('Setting %s events and %s type for %s (%s)' % (history_entry['Datasets'][dataset_name]['Events'],
+                                                                            history_entry['Datasets'][dataset_name]['Type'],
+                                                                            dataset_name,
+                                                                            wf_dict.get('_id')))
             output_datasets_set.remove(dataset_name)
 
-        for dataset in output_datasets_set:
-            history_entry['Datasets'][dataset] = {'Type': 'NONE',
+        for dataset_name in output_datasets_set:
+            history_entry['Datasets'][dataset_name] = {'Type': 'NONE',
                                                   'Events': 0}
+            self.logger.info('Setting %s events and %s type for %s (%s)' % (history_entry['Datasets'][dataset_name]['Events'],
+                                                                            history_entry['Datasets'][dataset_name]['Type'],
+                                                                            dataset_name,
+                                                                            wf_dict.get('_id')))
 
-        if len(history_entry['Datasets']) != len(output_datasets):
-            self.logger.error('Wrong number of datasets for %s, returning None' % (wf_dict['_id']))
+        if len(history_entry['Datasets']) != len(set(output_datasets)):
+            self.logger.error('Wrong number of datasets for %s. New history item - %s, output datasets - %s, returning None' % (wf_dict['_id'],
+                                                                                                                                len(history_entry['Datasets']),
+                                                                                                                                len(output_datasets)))
             return None
 
         return history_entry
