@@ -28,7 +28,8 @@ class ConnectionWrapper():
         return http.client.HTTPSConnection(url,
                                            port=443,
                                            cert_file=self.cert_file,
-                                           key_file=self.key_file)
+                                           key_file=self.key_file,
+                                           timeout=90)
 
     def refresh_connection(self, url):
         self.logger.info('Refreshing connection')

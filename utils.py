@@ -23,9 +23,15 @@ def make_cmsweb_request(query_url, data=None):
     request_start_time = time.time()
     response = connection_wrapper.api(method, query_url, data)
     request_finish_time = time.time()
-    logger.info('%s request to %s took %.3fs' % (method,
-                                                 query_url,
-                                                 request_finish_time - request_start_time))
+    if not data:
+        logger.info('%s request to %s took %.3fs' % (method,
+                                                     query_url,
+                                                     request_finish_time - request_start_time))
+    else:
+        logger.info('%s request to %s with data \n%s\n took %.3fs' % (method,
+                                                                      query_url,
+                                                                      json.dumps(data, indent=4),
+                                                                      request_finish_time - request_start_time))
     return json.loads(response.decode('utf-8'))
 
 

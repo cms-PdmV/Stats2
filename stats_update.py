@@ -6,6 +6,7 @@ import traceback
 from utils import setup_console_logging
 from couchdb_database import Database
 from utils import make_cmsweb_request, pick_attributes, make_simple_request
+import subprocess
 
 
 class StatsUpdate():
@@ -121,7 +122,8 @@ class StatsUpdate():
             self.logger.info('Updated %s in %.3fs' % (workflow_name, (update_end - update_start)))
             self.trigger_outside(workflow_name)
         else:
-            self.logger.info('Did not update %s because it did not change. Time: %.3fs' % (workflow_name, (update_end - update_start)))
+            self.logger.info('Did not update %s because it did not change. Time: %.3fs' % (workflow_name,
+                                                                                           (update_end - update_start)))
 
     def delete_one(self, workflow_name):
         """
@@ -150,7 +152,9 @@ class StatsUpdate():
             self.logger.info('Updated event count for %s in %.3fs' % (workflow_name, (recalc_end - recalc_start)))
             self.trigger_outside(workflow_name)
         else:
-            self.logger.info('Did not update event count for %s because it did not change. Time: %.3fs' % (workflow_name, (recalc_end - recalc_start)))
+            self.logger.info('Did not update event count for %s because it did not change. '
+                             'Time: %.3fs' % (workflow_name,
+                                              (recalc_end - recalc_start)))
 
     def get_new_dict_from_reqmgr2(self, workflow_name):
         """
@@ -246,16 +250,19 @@ class StatsUpdate():
 
         for dataset_name in output_datasets_set:
             history_entry['Datasets'][dataset_name] = {'Type': 'NONE',
-                                                  'Events': 0}
+                                                       'Events': 0}
             self.logger.info('Setting %s events and %s type for %s (%s)' % (history_entry['Datasets'][dataset_name]['Events'],
                                                                             history_entry['Datasets'][dataset_name]['Type'],
                                                                             dataset_name,
                                                                             wf_dict.get('_id')))
 
         if len(history_entry['Datasets']) != len(set(output_datasets)):
-            self.logger.error('Wrong number of datasets for %s. New history item - %s, output datasets - %s, returning None' % (wf_dict['_id'],
-                                                                                                                                len(history_entry['Datasets']),
-                                                                                                                                len(output_datasets)))
+            self.logger.error('Wrong number of datasets for %s. '
+                              'New history item - %s, '
+                              'output datasets - %s, '
+                              'returning None' % (wf_dict['_id'],
+                                                  len(history_entry['Datasets']),
+                                                  len(output_datasets)))
             return None
 
         return history_entry
@@ -491,6 +498,9 @@ class StatsUpdate():
         url = '/dbs/prod/global/DBSReader/datasets?min_ldate=%d&dataset_access_type=*' % (since_timestamp)
         self.logger.info('Getting the list of modified datasets since %d from %s' % (since_timestamp, url))
         dataset_list = make_cmsweb_request(url)
+        if dataset_list is None:
+            self.logger.error('Could not get list of modified datasets since %d from %s' % (since_timestamp, url))
+
         dataset_list = [dataset['dataset'] for dataset in dataset_list]
         self.logger.info('Got %d datasets' % (len(dataset_list)))
         return dataset_list
@@ -521,7 +531,11 @@ class StatsUpdate():
         """
         self.logger.info('Will get list of workflows which are currently putting data to DBS')
         url = '/wmstatsserver/data/filtered_requests?mask=RequestName'
-        workflow_list = make_cmsweb_request(url).get('result', [])
+        workflow_list = make_cmsweb_request(url)
+        if workflow_list is None:
+            self.logger.error('Could not get list of workflows from wmstats')
+
+        workflow_list = workflow_list.get('result', [])
         workflow_list = [workflow['RequestName'] for workflow in workflow_list]
 
         self.logger.info('Found %d workflows which are currently putting data to DBS' % (len(workflow_list)))
@@ -587,8 +601,31 @@ class StatsUpdate():
         """
         Trigger something outside (McM) when workflow is updated
         """
-        self.logger.info('Triggerring outside for %s' % (workflow_name))
-        pass
+        outside_url = 'https://cms-pdmv-dev.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/%s' % (workflow_name)
+        try:
+            self.logger.info('Triggering outside (McM) for %s: %s' % (workflow_name, outside_url))
+            cookie_path = 'dev_cookie.txt'
+            args = ['curl',
+                    outside_url,
+                    '-s',  # Silent
+                    '-k',  # Ignore invalid https certificate
+                    '-L',  # Follow 3xx codes
+                    '-m 60',  # Timeout 60s
+                    '-w %{http_code}',  # Return only HTTP code
+                    '-o /dev/null']
+            if cookie_path:
+                self.logger.info('Append cookie "%s" while making request to %s' % (cookie_path, outside_url))
+                args += ['--cookie', cookie_path]
+
+            args = ' '.join(args)
+            proc = subprocess.Popen(args, stdout=subprocess.PIPE, shell=True)
+            code = proc.communicate()[0]
+            code = int(code)
+            self.logger.info('HTTP code %s for %s' % (code, workflow_name))
+        except Exception as ex:
+            self.logger.error('Exception while trigerring %s for %s. Exception: %s' % (outside_url,
+                                                                                       workflow_name,
+                                                                                       str(ex)))
 
 
 def main():
