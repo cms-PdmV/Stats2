@@ -13,25 +13,6 @@ app = Flask(__name__,
             template_folder="./html")
 api = Api(app)
 
-
-def check_with_old_stats(workflows):
-    """
-    Delete this if Stats2 is used as prod service
-    """
-    for req in workflows:
-        stats_url = "http://vocms074:5984/stats/%s" % req['_id']
-        try:
-            stats_req = make_simple_request(stats_url)
-            req['OldCompletion'] = '%.2f' % (float(stats_req['pdmv_completion_in_DAS']))
-            if stats_req['pdmv_expected_events'] == req['TotalEvents']:
-                req['TotalEventsEqual'] = 'equal'
-            else:
-                req['TotalEventsEqual'] = 'not_equal'
-                req['TotalEventsStats'] = stats_req['pdmv_expected_events']
-        except:
-            req['TotalEventsEqual'] = 'not_found'
-
-
 @app.route('/get_json/<string:workflow_name>')
 @app.route('/api/get_json/<string:workflow_name>')
 def html_view_json(workflow_name):
@@ -53,53 +34,52 @@ def html_get(page=0):
     workflows = get_page(page)
     pages = [page, page > 0, database.PAGE_SIZE == len(workflows)]
     workflows = list(filter(lambda req: '_design' not in req['_id'], workflows))
-    check = request.args.get('check')
-    if check is not None:
-        check_with_old_stats(workflows)
-
+    datetime_format = '%Y&#8209;%m&#8209;%d&nbsp;%H:%M'
     for req in workflows:
         if '_design' in req['_id']:
             continue
 
-        req['DonePercent'] = '0.00'
-        req['OpenPercent'] = '0.00'
-        req['LastDatasetType'] = 'NONE'
-        req['LastDataset'] = ''
-        req['DoneEvents'] = '0'
-        req['LastUpdate'] = time.strftime('%Y&#8209;%m&#8209;%d&nbsp;%H:%M:%S', time.localtime(req['LastUpdate']))
-
         if len(req.get('RequestTransition', [])) > 0:
             last_transition = req['RequestTransition'][-1]
+            first_transition = req['RequestTransition'][0]
             if 'Status' in last_transition and 'UpdateTime' in last_transition:
-                req['LastStatus'] = '%s (%s)' % (last_transition['Status'], time.strftime('%Y&#8209;%m&#8209;%d&nbsp;%H:%M:%S', time.localtime(last_transition['UpdateTime'])))
+                req['LastStatus'] = '%s (%s)' % (last_transition['Status'],
+                                                 time.strftime(datetime_format, time.localtime(last_transition['UpdateTime'])))
             else:
-                req['LastStatus'] = last_transition.get('Status', '-')
+                req['LastStatus'] = last_transition.get('Status', '')
+
+            if 'UpdateTime' in first_transition:
+                req['Submitted'] = time.strftime(datetime_format, time.localtime(first_transition['UpdateTime']))
+            else:
+                req['Submitted'] = ''
         else:
-            req['LastStatus'] = '-'
+            req['LastStatus'] = ''
+            req['Submitted'] = ''
 
-        if len(req['OutputDatasets']) == 0:
-            continue
+        req['LastUpdate'] = time.strftime(datetime_format, time.localtime(req['LastUpdate']))
+        req['Requests'] = get_unique_list(req.get('Requests', []))
+        req['Campaigns'] = get_unique_list(req.get('Campaigns', []))
+        calculated_datasets = []
+        total_events = req.get('TotalEvents', 0)
+        for dataset in req['OutputDatasets']:
+            new_dataset = {'Name': dataset,
+                           'Events': 0,
+                           'Type': 'NONE',
+                           'CompletedPerc': '0.0',
+                           'Datatier': dataset.split('/')[-1]}
+            for history_entry in reversed(req['EventNumberHistory']):
+                history_entry = history_entry['Datasets']
+                if dataset in history_entry:
+                    new_dataset['Events'] = history_entry[dataset]['Events']
+                    new_dataset['Type'] = history_entry[dataset]['Type']
+                    if total_events > 0:
+                        new_dataset['CompletedPerc'] = '%.2f' % (new_dataset['Events'] / total_events * 100.0)
 
-        if len(req['EventNumberHistory']) == 0:
-            continue
+                    break
 
-        last_dataset = req['OutputDatasets'][-1]
-        last_history = req['EventNumberHistory'][-1]
-        if last_dataset not in last_history['Datasets']:
-            continue
+            calculated_datasets.append(new_dataset)
 
-        calculated_dataset = last_history['Datasets'][last_dataset]
-        dataset_type = calculated_dataset['Type']
-        req['LastDatasetType'] = dataset_type
-        req['LastDataset'] = last_dataset
-        done_events = calculated_dataset['Events']
-        req['DoneEvents'] = done_events
-        if 'TotalEvents' not in req:
-            continue
-
-        if req['TotalEvents'] > 0:
-            total_events = req['TotalEvents']
-            req['DonePercent'] = '%.2f' % (done_events / total_events * 100.0)
+        req['OutputDatasets'] = calculated_datasets
 
     return render_template('index.html',
                            workflows=workflows,
@@ -170,7 +150,19 @@ def get_page(page=0):
         else:
             workflows = database.get_workflows(page=page, include_docs=True)
 
+    if prepid is not None or dataset is not None or request_name is not None:
+        workflows = sorted(workflows, key=lambda wf: '_'.join(wf.get('RequestName').split('_')[-3:-1]))
+
     return workflows
+
+
+def get_unique_list(input_list):
+    new_list = []
+    for element in input_list:
+        if element not in new_list:
+            new_list.append(element)
+
+    return new_list
 
 
 def run_flask():
@@ -180,9 +172,13 @@ def run_flask():
                         help='Port, default is 8001')
     parser.add_argument('--host',
                         help='Host IP, default is 127.0.0.1')
+    parser.add_argument('--debug',
+                        help='Run Flask in debug mode',
+                        action='store_true')
     args = vars(parser.parse_args())
     port = args.get('port', None)
     host = args.get('host', None)
+    debug = args.get('debug', False)
     if not port:
         port = 8001
 
@@ -191,6 +187,7 @@ def run_flask():
 
     app.run(host=host,
             port=port,
+            debug=debug,
             threaded=True)
 
 

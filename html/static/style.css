@@ -1,27 +1,35 @@
 td, th {
   word-wrap: break-word;
-  max-width: 400px;
 }
 
-.open-bar {
+.bar {
+  line-height:10px;
+  height: 10px;
+  display: inline-block;
+  max-width: 100%;
+  background-color: #2C3E50;
+}
+
+.production-bar {
   background-color:#F39C12;
-  line-height:10px;
-  height: 10px;
-  display: inline-block;
-  max-width: 100%;
 }
 
-.done-bar {
+.valid-bar {
   background-color:#3498db;
-  line-height:10px;
-  height: 10px;
-  display: inline-block;
-  max-width: 100%;
+}
+
+.invalid-bar {
+  background-color:#C0392B;
+}
+
+.deleted-bar {
+  background-color:#E74C3C;
 }
 
 .gray-bar {
   width: 100px;
   background-color:#bdc3c7;
+  display: inline-block;
   line-height:10px;
   height: 10px;
   font-size: 0;
@@ -59,4 +67,12 @@ td, th {
 ul.no-bullets {
   list-style: none;
   padding-left: 0;
+}
+
+ul {
+  padding-inline-start: 20px;
+}
+
+tr:nth-child(even) {
+  background-color: #f3f3f3;
 }
