@@ -74,5 +74,23 @@ ul {
 }
 
 tr:nth-child(even) {
-  background-color: #f3f3f3;
+  background-color: #f5f5fc;
+}
+
+small {
+  color: #5A5A5A;
+}
+
+a {
+  color: #0062cc;
+}
+
+
+th:first-child, td:first-child {
+  padding: 0.75rem 0.75rem 0.75rem 1.5rem;
+}
+
+
+th:last-child, td:last-child {
+  padding: 0.75rem 1.5rem 0.75rem 0.75rem;
 }

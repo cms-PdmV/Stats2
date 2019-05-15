@@ -26,6 +26,7 @@ def html_view_json(workflow_name):
     response.headers['Content-Type'] = 'application/json'
     return response
 
+
 # HTML responses
 @app.route('/')
 @app.route('/<int:page>')
@@ -34,27 +35,23 @@ def html_get(page=0):
     workflows = get_page(page)
     pages = [page, page > 0, database.PAGE_SIZE == len(workflows)]
     workflows = list(filter(lambda req: '_design' not in req['_id'], workflows))
-    datetime_format = '%Y&#8209;%m&#8209;%d&nbsp;%H:%M'
+    datetime_format = '%Y&#8209;%m&#8209;%d&nbsp;%H:%M:%S'
     for req in workflows:
         if '_design' in req['_id']:
             continue
 
+        req['FirstStatus'] = ''
+        req['LastStatus'] = ''
         if len(req.get('RequestTransition', [])) > 0:
-            last_transition = req['RequestTransition'][-1]
             first_transition = req['RequestTransition'][0]
+            last_transition = req['RequestTransition'][-1]
+            if 'Status' in first_transition and 'UpdateTime' in first_transition:
+                req['FirstStatus'] = '%s (%s)' % (first_transition['Status'],
+                                                  time.strftime(datetime_format, time.localtime(first_transition['UpdateTime'])))
+
             if 'Status' in last_transition and 'UpdateTime' in last_transition:
                 req['LastStatus'] = '%s (%s)' % (last_transition['Status'],
                                                  time.strftime(datetime_format, time.localtime(last_transition['UpdateTime'])))
-            else:
-                req['LastStatus'] = last_transition.get('Status', '')
-
-            if 'UpdateTime' in first_transition:
-                req['Submitted'] = time.strftime(datetime_format, time.localtime(first_transition['UpdateTime']))
-            else:
-                req['Submitted'] = ''
-        else:
-            req['LastStatus'] = ''
-            req['Submitted'] = ''
 
         req['LastUpdate'] = time.strftime(datetime_format, time.localtime(req['LastUpdate']))
         req['Requests'] = get_unique_list(req.get('Requests', []))
@@ -81,7 +78,11 @@ def html_get(page=0):
 
         req['OutputDatasets'] = calculated_datasets
 
+    last_stats_update = database.get_setting('last_dbs_update_date', 0)
+    last_stats_update = time.strftime(datetime_format, time.localtime(last_stats_update))
+
     return render_template('index.html',
+                           last_stats_update=last_stats_update,
                            workflows=workflows,
                            total_workflows=database.get_workflow_count(),
                            pages=pages,
@@ -89,7 +90,7 @@ def html_get(page=0):
 
 
 @app.route('/update/<string:workflow_name>')
-def html_update(workflow_name): 
+def html_update(workflow_name):
     StatsUpdate().perform_update(workflow_name=workflow_name)
     return redirect("/?workflow_name=" + workflow_name, code=302)
 

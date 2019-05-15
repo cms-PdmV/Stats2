@@ -5,69 +5,74 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
     <link rel="stylesheet" href="static/style.css">
     <link rel="shortcut icon" type="image/x-icon" href="static/favicon.png">
-    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400">
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,700">
     <title>Stats2</title>
   </head>
   <body>
     <a class="title" href="/stats">Stats<sup class="red">2</sup></a>
-    <ul>
-      <li>Total workflows in Stats<sup class="red">2</sup>: {{ total_workflows }}</li>
-      <li><a href="http://instance3.cern.ch/jenkins/job/Stats2%20Update/lastBuild/">Last Jenkins job</a></li>
-      <li><a href="https://github.com/justinasr/Stats2">GitHub</a></li>
-      <li>Update time:<a href="http://instance3.cern.ch/jenkins/job/Stats2%20Update/buildTimeTrend"><br><img style="width:180px" src="http://instance3.cern.ch/jenkins/job/Stats2%20Update/buildTimeGraph/png"/></a></li>
+    <ul style="margin: 10px;">
+      <li><small>Total workflows in Stats<sup class="red">2</sup>:</small> {{ total_workflows }}</li>
+      <li><small>Last update:</small> {{ last_stats_update | safe }}</li>
+      <li><small><a href="http://instance3.cern.ch/jenkins/job/Stats2%20Update/lastBuild/">Last Jenkins job</a></small></li>
+      <li><small><a href="https://github.com/justinasr/Stats2">GitHub</a></small></li>
+      <li><small>Update time in Jenkins: </small><a href="http://instance3.cern.ch/jenkins/job/Stats2%20Update/buildTimeTrend"><br><img style="width:180px" src="http://instance3.cern.ch/jenkins/job/Stats2%20Update/buildTimeGraph/png"/></a></li>
     </ul>
     <table class="table" style="font-size: 0.9rem">
       <tr style="font-size: 14px">
         <th>Workflow</th>
-        <th>McM Requests/Campaigns</th>
+        <th>Requests/Campaigns</th>
         <th>Output datasets</th>
       </tr>
       {% for workflow in workflows %}
         <tr>
-          <td><small>Name</small>: <b><a href="0?workflow_name={{ workflow.RequestName }}">{{ workflow.RequestName }}</a></b><br>
+          <td><small>Name:</small> <a href="0?workflow_name={{ workflow.RequestName }}">{{ workflow.RequestName }}</a><br>
               {% if workflow.PrepID | length > 0 %}
-                <small>PrepID</small>: <b><a href="0?prepid={{ workflow.PrepID }}">{{ workflow.PrepID }}</a></b><br>
+                <small>PrepID:</small> <a href="0?prepid={{ workflow.PrepID }}">{{ workflow.PrepID }}</a><br>
               {% endif %}
-              <small>Type</small>: <b><a href="0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a></b><br>
-              <small>Total events</small>: <b>{{ workflow.TotalEvents }}</b><br>
-              <small>Priority</small>: <b>{{ workflow.RequestPriority }}</b><br>
-              <small>Last update (<a href="update/{{ workflow._id }}">Update&nbsp;Now</a>)</small>: <b>{{ workflow.LastUpdate | safe }}</b><br>
-              {% if workflow.Submitted | length > 0 %}
-                <small>Submitted</small>: <b>{{ workflow.Submitted | safe }}</b><br>
+              <small>Type:</small> <a href="0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a><br>
+              <small>Total events:</small> {{ workflow.TotalEvents }}<br>
+              <small>Priority:</small> {{ workflow.RequestPriority }}<br>
+              <small>Last update (<a href="update/{{ workflow._id }}">Update&nbsp;Now</a>):</small> {{ workflow.LastUpdate | safe }}<br>
+              {% if workflow.FirstStatus | length > 0 %}
+                <small>First status:</small> {{ workflow.FirstStatus | safe }}<br>
               {% endif %}
               {% if workflow.LastStatus | length > 0 %}
-                <small>Last status</small>: <b>{{ workflow.LastStatus | safe }}</b><br>
+                <small>Last status:</small> {{ workflow.LastStatus | safe }}<br>
               {% endif %}
               {% if workflow.ProcessingString | length > 0 %}
-                  <small>Processing string</small>: <b><a href="0?processing_string={{ workflow.ProcessingString }}">{{ workflow.ProcessingString }}</a></b><br>
+                  <small>Processing string:</small> <a href="0?processing_string={{ workflow.ProcessingString }}">{{ workflow.ProcessingString }}</a><br>
               {% endif %}
               <small><a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ workflow.RequestName }}">ReqMgr2</a></small><br>
               <small><a href="get_json/{{ workflow._id }}">View&nbsp;JSON</a></small><br>
           </td>
           <td>
-            <ul>
-              <li>Requests (Tasks/Steps):
-                <ul>
-                  {% for request in workflow.Requests %}
-                    <li>
-                      <small><a href="0?request={{ request }}">{{ request }}</a></small>
-                      <b><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request }}">McM</a></b>
-                      <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request }}">pMp</a>
-                    </li>
-                  {% endfor %}
-                </ul>
-              </li>
-              <li>Campaigns:
-                <ul>
-                  {% for campaign in workflow.Campaigns %}
-                    <li>
-                      <small><a href="0?campaign={{ campaign }}">{{ campaign }}</a></small>
-                      <b><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ campaign }}">McM</a></b>
-                      <a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ campaign }}">pMp</a>
-                    </li>
-                  {% endfor %}
-                </ul>
-              </li>
+            <ul class="no-bullets">
+              {% if workflow.Requests | length > 0 %}
+                <li><small>Requests (Tasks/Steps):</small>
+                  <ul>
+                    {% for request in workflow.Requests %}
+                      <li>
+                        <a href="0?request={{ request }}">{{ request }}</a>
+                        <small><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request }}">McM</a></small>
+                        <small><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request }}">pMp</a></small>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </li>
+              {% endif %}
+              {% if workflow.Campaigns | length > 0 %}
+                <li><small>Campaigns:</small>
+                  <ul>
+                    {% for campaign in workflow.Campaigns %}
+                      <li>
+                        <a href="0?campaign={{ campaign }}">{{ campaign }}</a>
+                        <small><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ campaign }}">McM</a></small>
+                        <small><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ campaign }}">pMp</a></small>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </li>
+              {% endif %}
             </ul>
           </td>
           <td>
@@ -87,11 +92,11 @@
                       <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar"></div>
                     {% endif %}
                   </div>
-                    <small>datatier:</small> <b>{{dataset.Datatier}}</b>,
-                    <small>completed:</small> <b>{{dataset.CompletedPerc}}%</b>,
-                    <small>events:</small> <b>{{dataset.Events}}</b>,
-                    <small>type:</small> <b>{{dataset.Type}}</b>,
-                    <b><a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}">DAS</a></b><br>
+                    <small>datatier:</small> {{dataset.Datatier}},
+                    <small>completed:</small> {{dataset.CompletedPerc}}%,
+                    <small>events:</small> {{dataset.Events}},
+                    <small>type:</small> {{dataset.Type}},
+                    <a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a><br>
                     <small><a href="0?dataset={{ dataset.Name }}">{{ dataset.Name }}</a></small>
                 </li>
               {% endfor %}
