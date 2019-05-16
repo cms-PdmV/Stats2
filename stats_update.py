@@ -613,7 +613,6 @@ class StatsUpdate():
         for outside in outside_urls:
             try:
                 self.logger.info('Triggering outside (McM) for %s' % (workflow_name))
-                cookie_path = 'dev_cookie.txt'
                 args = ['curl',
                         outside['url'],
                         '-s',  # Silent
@@ -624,7 +623,7 @@ class StatsUpdate():
                         '-o /dev/null']
                 if outside.get('cookie'):
                     self.logger.info('Append cookie "%s" while making request for %s' % (outside['cookie'], workflow_name))
-                    args += ['--cookie', cookie_path]
+                    args += ['--cookie', outside['cookie']]
 
                 args = ' '.join(args)
                 proc = subprocess.Popen(args, stdout=subprocess.PIPE, shell=True)
@@ -661,8 +660,8 @@ def main():
 
     action = args.get('action', None)
     name = args.get('name', None)
-    trigger_prod = args.get('trigger-prod', False)
-    trigger_dev = args.get('trigger-dev', False)
+    trigger_prod = args.get('trigger_prod', False)
+    trigger_dev = args.get('trigger_dev', False)
 
     if action == 'update':
         stats_update = StatsUpdate()
