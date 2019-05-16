@@ -13,9 +13,9 @@
     <ul style="margin: 10px;">
       <li><small>Total workflows in Stats<sup class="red">2</sup>:</small> {{ total_workflows }}</li>
       <li><small>Last update:</small> {{ last_stats_update | safe }}</li>
-      <li><small><a href="http://instance3.cern.ch/jenkins/job/Stats2%20Update/lastBuild/">Last Jenkins job</a></small></li>
+      <li><small><a href="/jenkins/job/Stats2%20Update/lastBuild/">Last Jenkins job</a></small></li>
       <li><small><a href="https://github.com/justinasr/Stats2">GitHub</a></small></li>
-      <li><small>Update time in Jenkins: </small><a href="http://instance3.cern.ch/jenkins/job/Stats2%20Update/buildTimeTrend"><br><img style="width:180px" src="http://instance3.cern.ch/jenkins/job/Stats2%20Update/buildTimeGraph/png"/></a></li>
+      <li><small>Update time in Jenkins: </small><a href="/jenkins/job/Stats2%20Update/buildTimeTrend"><br><img style="width:180px" src="/jenkins/job/Stats2%20Update/buildTimeGraph/png"/></a></li>
     </ul>
     <table class="table" style="font-size: 0.9rem">
       <tr style="font-size: 14px">
@@ -32,7 +32,7 @@
               <small>Type:</small> <a href="0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a><br>
               <small>Total events:</small> {{ workflow.TotalEvents }}<br>
               <small>Priority:</small> {{ workflow.RequestPriority }}<br>
-              <small>Last update (<a href="update/{{ workflow._id }}">Update&nbsp;Now</a>):</small> {{ workflow.LastUpdate | safe }}<br>
+              <small>Last update:</small> {{ workflow.LastUpdate | safe }}<br>
               {% if workflow.FirstStatus | length > 0 %}
                 <small>First status:</small> {{ workflow.FirstStatus | safe }}<br>
               {% endif %}

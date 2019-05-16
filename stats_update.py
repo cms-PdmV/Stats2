@@ -19,19 +19,19 @@ class StatsUpdate():
         self.database = Database()
         self.dataset_info_cache = {}
 
-    def perform_update(self, workflow_name=None):
+    def perform_update(self, workflow_name=None, trigger_prod=False, trigger_dev=False):
         """
         Perform update for specific workflow if workflow name is given or for all changed
         workflows if no name is specified.
         """
         if workflow_name is not None:
-            self.perform_update_one(workflow_name)
+            self.perform_update_one(workflow_name, trigger_prod, trigger_dev)
         else:
-            self.perform_update_new()
+            self.perform_update_new(trigger_prod, trigger_dev)
 
         self.logger.info('Workflows after update %d' % (self.database.get_workflow_count()))
 
-    def perform_update_one(self, workflow_name):
+    def perform_update_one(self, workflow_name, trigger_prod=False, trigger_dev=False):
         """
         Perform update for specific workflow: fetch new dictionary from RequestManager
         and update event recalculation
@@ -40,7 +40,7 @@ class StatsUpdate():
         self.update_one(workflow_name)
         self.recalculate_one(workflow_name)
 
-    def perform_update_new(self):
+    def perform_update_new(self, trigger_prod=False, trigger_dev=False):
         """
         Perform update for all workflows that changed since last update and recalculate
         events for files that changed since last update
@@ -95,7 +95,7 @@ class StatsUpdate():
         self.logger.info('Updated event count for %d workflows in %.3fs' % (len(workflows_to_recalculate),
                                                                             (recalculation_end - update_end)))
 
-    def update_one(self, workflow_name):
+    def update_one(self, workflow_name, trigger_prod=False, trigger_dev=False):
         """
         Action to update one workflow's dictionary from RequestManager. If no such
         workflow exist in database, new one will be created.
@@ -120,7 +120,7 @@ class StatsUpdate():
         if old_wf_dict_string != new_wf_dict_string:
             self.database.update_workflow(wf_dict)
             self.logger.info('Updated %s in %.3fs' % (workflow_name, (update_end - update_start)))
-            self.trigger_outside(workflow_name)
+            self.trigger_outside(workflow_name, trigger_prod, trigger_dev)
         else:
             self.logger.info('Did not update %s because it did not change. Time: %.3fs' % (workflow_name,
                                                                                            (update_end - update_start)))
@@ -133,7 +133,7 @@ class StatsUpdate():
         self.database.delete_workflow(workflow_name)
         self.logger.info('Deleted %s' % (workflow_name))
 
-    def recalculate_one(self, workflow_name):
+    def recalculate_one(self, workflow_name, trigger_prod=False, trigger_dev=False):
         """
         Action to update event count for workflow.
         """
@@ -150,7 +150,7 @@ class StatsUpdate():
         if added_history_entry:
             self.database.update_workflow(workflow)
             self.logger.info('Updated event count for %s in %.3fs' % (workflow_name, (recalc_end - recalc_start)))
-            self.trigger_outside(workflow_name)
+            self.trigger_outside(workflow_name, trigger_prod, trigger_dev)
         else:
             self.logger.info('Did not update event count for %s because it did not change. '
                              'Time: %.3fs' % (workflow_name,
@@ -597,35 +597,44 @@ class StatsUpdate():
             workflows.append(workflow_name)
             self.database.set_setting('failed_workflows', workflows)
 
-    def trigger_outside(self, workflow_name):
+    def trigger_outside(self, workflow_name, trigger_prod=False, trigger_dev=False):
         """
         Trigger something outside (McM) when workflow is updated
         """
-        outside_url = 'https://cms-pdmv-dev.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/%s' % (workflow_name)
-        try:
-            self.logger.info('Triggering outside (McM) for %s: %s' % (workflow_name, outside_url))
-            cookie_path = 'dev_cookie.txt'
-            args = ['curl',
-                    outside_url,
-                    '-s',  # Silent
-                    '-k',  # Ignore invalid https certificate
-                    '-L',  # Follow 3xx codes
-                    '-m 60',  # Timeout 60s
-                    '-w %{http_code}',  # Return only HTTP code
-                    '-o /dev/null']
-            if cookie_path:
-                self.logger.info('Append cookie "%s" while making request to %s' % (cookie_path, outside_url))
-                args += ['--cookie', cookie_path]
+        outside_urls = []
+        if trigger_prod:
+            outside_urls.append({'url': 'https://cms-pdmv.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/%s' % (workflow_name),
+                                 'cookie': 'prod_cookie.txt'})
 
-            args = ' '.join(args)
-            proc = subprocess.Popen(args, stdout=subprocess.PIPE, shell=True)
-            code = proc.communicate()[0]
-            code = int(code)
-            self.logger.info('HTTP code %s for %s' % (code, workflow_name))
-        except Exception as ex:
-            self.logger.error('Exception while trigerring %s for %s. Exception: %s' % (outside_url,
-                                                                                       workflow_name,
-                                                                                       str(ex)))
+        if trigger_dev:
+            outside_urls.append({'url': 'https://cms-pdmv-dev.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/%s' % (workflow_name),
+                                 'cookie': 'dev_cookie.txt'})
+
+        for outside in outside_urls:
+            try:
+                self.logger.info('Triggering outside (McM) for %s' % (workflow_name))
+                cookie_path = 'dev_cookie.txt'
+                args = ['curl',
+                        outside['url'],
+                        '-s',  # Silent
+                        '-k',  # Ignore invalid https certificate
+                        '-L',  # Follow 3xx codes
+                        '-m 60',  # Timeout 60s
+                        '-w %{http_code}',  # Return only HTTP code
+                        '-o /dev/null']
+                if outside.get('cookie'):
+                    self.logger.info('Append cookie "%s" while making request for %s' % (outside['cookie'], workflow_name))
+                    args += ['--cookie', cookie_path]
+
+                args = ' '.join(args)
+                proc = subprocess.Popen(args, stdout=subprocess.PIPE, shell=True)
+                code = proc.communicate()[0]
+                code = int(code)
+                self.logger.info('HTTP code %s for %s' % (code, workflow_name))
+            except Exception as ex:
+                self.logger.error('Exception while trigerring %s for %s. Exception: %s' % (outside['url'],
+                                                                                           workflow_name,
+                                                                                           str(ex)))
 
 
 def main():
@@ -633,26 +642,34 @@ def main():
     logger = logging.getLogger('logger')
     parser = argparse.ArgumentParser(description='Stats2 update')
     parser.add_argument('--action',
-                        choices=['update', 'see', 'drop'],
+                        choices=['update', 'see'],
                         required=True,
                         help='Action to be performed.')
     parser.add_argument('--name',
                         required=False,
                         help='Workflow to be updated.')
+    parser.add_argument('--trigger-prod',
+                        required=False,
+                        action='store_true',
+                        help='Trigger production McM to update')
+    parser.add_argument('--trigger-dev',
+                        required=False,
+                        action='store_true',
+                        help='Trigger development McM to update')
     args = vars(parser.parse_args())
     logger.info('Arguments %s' % (str(args)))
 
     action = args.get('action', None)
     name = args.get('name', None)
+    trigger_prod = args.get('trigger-prod', False)
+    trigger_dev = args.get('trigger-dev', False)
 
     if action == 'update':
         stats_update = StatsUpdate()
-        stats_update.perform_update(name)
+        stats_update.perform_update(name, trigger_prod, trigger_dev)
     elif action == 'see':
         workflow = Database().get_workflow(name)
         print(json.dumps(workflow, indent=4))
-    elif action == 'drop':
-        Database().clear_database()
 
 
 if __name__ == '__main__':
