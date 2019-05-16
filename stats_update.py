@@ -61,7 +61,7 @@ class StatsUpdate():
         for index, workflow_name in enumerate(changed_workflows):
             try:
                 self.logger.info('Will update %d/%d workflow' % (index + 1, len(changed_workflows)))
-                self.update_one(workflow_name)
+                self.update_one(workflow_name, trigger_prod, trigger_dev)
                 self.remove_from_list_of_crashed_workflows(workflow_name)
             except Exception as e:
                 self.add_to_list_of_crashed_workflows(workflow_name)
@@ -79,7 +79,7 @@ class StatsUpdate():
         for index, workflow_name in enumerate(workflows_to_recalculate):
             try:
                 self.logger.info('Will update event count for %d/%d' % (index + 1, len(workflows_to_recalculate)))
-                self.recalculate_one(workflow_name)
+                self.recalculate_one(workflow_name, trigger_prod, trigger_dev)
                 self.remove_from_list_of_crashed_workflows(workflow_name)
             except Exception as e:
                 self.add_to_list_of_crashed_workflows(workflow_name)
