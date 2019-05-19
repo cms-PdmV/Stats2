@@ -95,6 +95,29 @@ def html_update(workflow_name):
     return redirect("/?workflow_name=" + workflow_name, code=302)
 
 
+@app.route('/search')
+def html_search():
+    database = Database()
+    q = request.args.get('q')
+    if not q:
+        return redirect("/", code=302)
+
+    if database.get_workflows_with_prepid(q):
+        return redirect("/?prepid=" + q, code=302)
+    elif database.get_workflows_with_dataset(q):
+        return redirect("/?dataset=" + q, code=302)
+    elif database.get_workflows_with_campaign(q):
+        return redirect("/?campaign=" + q, code=302)
+    elif database.get_workflows_with_type(q):
+        return redirect("/?type=" + q, code=302)
+    elif database.get_workflows_with_processing_string(q):
+        return redirect("/?processing_string=" + q, code=302)
+    elif database.get_workflows_with_request(q):
+        return redirect("/?request=" + q, code=302)
+
+    return redirect("/?workflow_name=" + q, code=302)
+
+
 # JSON responses
 @app.route('/api/get')
 @app.route('/api/get/<int:page>')
