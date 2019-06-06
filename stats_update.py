@@ -17,6 +17,7 @@ class StatsUpdate():
     def __init__(self):
         self.logger = logging.getLogger('logger')
         self.database = Database()
+        self.dataset_event_cache = {}
         self.dataset_info_cache = {}
 
     def perform_update(self, workflow_name=None, trigger_prod=False, trigger_dev=False):
@@ -212,8 +213,8 @@ class StatsUpdate():
         """
         Get event count for specified dataset from DBS.
         """
-        if dataset_name in self.dataset_info_cache:
-            num_event = self.dataset_info_cache[dataset_name]
+        if dataset_name in self.dataset_event_cache:
+            num_event = self.dataset_event_cache[dataset_name]
             self.logger.info('Found number of events (%s) for %s in cache' % (num_event, dataset_name))
             return num_event
 
@@ -223,7 +224,7 @@ class StatsUpdate():
         if len(filesummaries) != 0:
             num_event = int(filesummaries[0]['num_event'])
 
-        self.dataset_info_cache[dataset_name] = num_event
+        self.dataset_event_cache[dataset_name] = num_event
         return num_event
 
     def get_new_history_entry(self, wf_dict, depth=0):
@@ -231,17 +232,35 @@ class StatsUpdate():
         Form a new history entry dictionary for given workflow.
         """
         output_datasets = wf_dict.get('OutputDatasets', [])
-        output_datasets_set = set(output_datasets)
         if len(output_datasets) == 0:
             return None
 
+        output_datasets_set = set(output_datasets)
         history_entry = {'Time': int(time.time()), 'Datasets': {}}
         dataset_list_url = '/dbs/prod/global/DBSReader/datasetlist'
-        dbs_dataset_list = make_cmsweb_request(dataset_list_url, {'dataset': output_datasets, 'detail': 1})
+        output_datasets_to_query = []
+        for output_dataset in set(output_datasets):
+            if output_dataset in self.dataset_info_cache:
+                cache_entry = self.dataset_info_cache[output_dataset]
+                self.logger.info('Found %s dataset info in cache: %s %s' % (output_dataset,
+                                                                            cache_entry['Type'],
+                                                                            cache_entry['Events']))
+                history_entry['Datasets'][output_dataset] = cache_entry
+                output_datasets_set.remove(output_dataset)
+            else:
+                output_datasets_to_query.append(output_dataset)
+
+        if output_datasets_to_query:
+            dbs_dataset_list = make_cmsweb_request(dataset_list_url, {'dataset': output_datasets_to_query, 'detail': 1})
+        else:
+            self.logger.info('Not doing a request to %s because all datasets were in cache' % (dataset_list_url))
+            dbs_dataset_list = []
+
         for dbs_dataset in dbs_dataset_list:
             dataset_name = dbs_dataset['dataset']
             history_entry['Datasets'][dataset_name] = {'Type': dbs_dataset['dataset_access_type'],
                                                        'Events': self.get_event_count_from_dbs(dataset_name)}
+            self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
             self.logger.info('Setting %s events and %s type for %s (%s)' % (history_entry['Datasets'][dataset_name]['Events'],
                                                                             history_entry['Datasets'][dataset_name]['Type'],
                                                                             dataset_name,
@@ -251,6 +270,7 @@ class StatsUpdate():
         for dataset_name in output_datasets_set:
             history_entry['Datasets'][dataset_name] = {'Type': 'NONE',
                                                        'Events': 0}
+            self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
             self.logger.info('Setting %s events and %s type for %s (%s)' % (history_entry['Datasets'][dataset_name]['Events'],
                                                                             history_entry['Datasets'][dataset_name]['Type'],
                                                                             dataset_name,
