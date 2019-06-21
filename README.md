@@ -2,8 +2,8 @@
 ## What is it?
 Stats2 takes list of requests from *RequestManager2* and stores smaller (not all attributes) copy of all requests. It also takes nuber of open/done events from *dbs* and collects history for each dataset in all requests.
 Main improvement over old Stats is that Stats2 fetch only changes of workflows since last update and fetches events only for these workflows which are currently in production. As a result, updates take about 10-20 minutes instead of 1-2 hours.
-## No Javascript!
-Stats2 has 0 javascript. However, it uses Jinja2 templates a lot.
+## No Javascript*!
+Stats2 has almost no javascript. However, it uses Jinja2 templates a lot. Only Javascript bit is used for website search - to get value from input field.
 ## Console usage
 Usually Stats2 should be viewed and controlled from web browser, but it  can be used as a python script as well:
 Update all requests:
@@ -121,18 +121,15 @@ git clone https://github.com/justinasr/Stats2.git
 ```
 ## Running it
 ### Launch the website
-Provide links to grid certificate files (for Update now function) and launch the main.py
+Launch the main.py
 ```
-export USERCRT=/.../user.crt.pem
-export USERKEY=/.../user.key.pem
-python3 main.py [--ssl_cert] [--ssl_key] [--port]
+python3 main.py [--host] [--port] [--debug]
 ```
-There are three available arguments when launching a website: `--ssl_cert`, `--ssl_key` and `--port`. If paths to certificates (certificate and key respectively) are provided in ssl_cert and ssl_key then website launches with ssl and port is set to 443. If not, then website without ssl is launched on port 80. Port settings can be overwritten with `--port`.
+There are three available arguments when launching a website: `--host`, `--port` and `--debug`. Website by default is launched with host ip 127.0.0.1 on port 80. Host can be overwritten with --host. Port can be overwritten with `--port`. Parameter --debug launches flask server in debug mode.
 ```
 python3 main.py &
-python3 main.py --ssl_cert /home/ssl.crt --ssl_key /home/ssl.key &
-python3 main.py --ssl_cert /home/ssl.crt --ssl_key /home/ssl.key --port 8000 &
-python3 main.py --port 8000 &
+python3 main.py --host 0.0.0.0 --port 8000 &
+python3 main.py --debug
 ```
 ### Perform update
 Provide the grid certificate and key (for cmsweb interaction) and start the initial update
