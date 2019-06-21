@@ -125,7 +125,7 @@ Launch the main.py
 ```
 python3 main.py [--host] [--port] [--debug]
 ```
-There are three available arguments when launching a website: `--host`, `--port` and `--debug`. Website by default is launched with host ip 127.0.0.1 on port 80. Host can be overwritten with --host. Port can be overwritten with `--port`. Parameter --debug launches flask server in debug mode.
+There are three available arguments when launching a website: `--host`, `--port` and `--debug`. Website by default is launched with host ip 127.0.0.1 on port 80. Host can be overwritten with `--host`. Port can be overwritten with `--port`. Parameter `--debug` launches flask server in debug mode.
 ```
 python3 main.py &
 python3 main.py --host 0.0.0.0 --port 8000 &
