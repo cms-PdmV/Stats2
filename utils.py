@@ -11,12 +11,13 @@ __connection_wrappers = {}
 __LOG_FORMAT = '[%(asctime)s][%(levelname)s] %(message)s'
 
 
-def make_cmsweb_request(query_url, data=None):
+def make_cmsweb_request(query_url, data=None, timeout=90, keep_open=True):
     host_url = 'https://cmsweb.cern.ch'
-    connection_wrapper = __connection_wrappers.get(host_url)
+    connection_wrapper_key = '%s___%s___%s' % (host_url, timeout, keep_open)
+    connection_wrapper = __connection_wrappers.get(connection_wrapper_key)
     if connection_wrapper is None:
-        connection_wrapper = ConnectionWrapper(host_url)
-        __connection_wrappers[host_url] = connection_wrapper
+        connection_wrapper = ConnectionWrapper(host_url, timeout, keep_open)
+        __connection_wrappers[connection_wrapper_key] = connection_wrapper
 
     method = 'GET' if data is None else 'POST'
     logger = logging.getLogger('logger')
