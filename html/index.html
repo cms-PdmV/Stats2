@@ -75,7 +75,7 @@
                     {% for campaign in workflow.Campaigns %}
                       <li>
                         <a href="0?campaign={{ campaign }}">{{ campaign }}</a>
-                        <small><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ campaign }}">McM</a></small>
+                        <small><a href="https://cms-pdmv.cern.ch/mcm/campaigns?prepid={{ campaign }}">McM</a></small>
                         <small><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ campaign }}">pMp</a></small>
                       </li>
                     {% endfor %}
