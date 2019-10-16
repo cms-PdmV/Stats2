@@ -294,14 +294,19 @@ class StatsUpdate():
         if new_history_entry is None:
             return False
 
+        if not new_history_entry.get('Datasets', []):
+            # No datasets, no point in adding this entry
+            return False
+
         new_dict_string = json.dumps(new_history_entry['Datasets'], sort_keys=True)
-        history_entries = wf_dict['EventNumberHistory']
-        for history_entry in history_entries:
-            old_dict_string = json.dumps(history_entry['Datasets'], sort_keys=True)
-            if new_dict_string == old_dict_string:
+        history_entries = sorted(wf_dict['EventNumberHistory'], key=lambda entry: entry.get('Time', 0))
+        if len(history_entries) > 0:
+            last_dict_string = json.dumps(history_entries[-1]['Datasets'], sort_keys=True)
+            if new_dict_string == last_dict_string:
                 return False
 
         history_entries.append(new_history_entry)
+        wf_dict['EventNumberHistory'] = history_entries
         # self.logger.info(json.dumps(history_entry, indent=2))
         return True
 

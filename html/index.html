@@ -13,16 +13,16 @@
     <ul style="margin: 10px;">
       <li><small>Total workflows in Stats<sup class="red">2</sup>:</small> {{ total_workflows }}</li>
       <li><small>Last update:</small> {{ last_stats_update | safe }}</li>
-      <li><small><a href="/jenkins/job/Stats2%20Update/lastBuild/">Last Jenkins job</a></small></li>
-      <li><small><a href="https://github.com/justinasr/Stats2">GitHub</a></small></li>
-      <li><small>Update time in Jenkins: </small><a href="/jenkins/job/Stats2%20Update/buildTimeTrend"><br><img style="width:180px" src="/jenkins/job/Stats2%20Update/buildTimeGraph/png"/></a></li>
+      <!--<li><small><a href="/jenkins/job/Stats2%20Update/lastBuild/">Last Jenkins job</a></small></li>-->
+      <li><small><a target="_blank" href="https://github.com/justinasr/Stats2">GitHub</a></small></li>
+      <!--<li><small>Update time in Jenkins: </small><a href="/jenkins/job/Stats2%20Update/buildTimeTrend"><br><img style="width:180px" src="/jenkins/job/Stats2%20Update/buildTimeGraph/png"/></a></li>-->
       <li>
-        <form class="form-inline" style="margin-top:10px" onsubmit="this.action='search?q='+this.q.value;">
+        <form class="form-inline" onsubmit="this.action='search?q='+this.q.value;">
           <div class="form-group">
             <label><small>Search:</small></label>
-            <input style="margin-left: 6px; margin-right: 6px; width:500px;" type="text" name="q" id="q" placeholder="Workflow, PrepID, Dataset, etc.">
+            <input style="margin-left: 6px; margin-right: 6px; width:500px;" type="text" name="q" id="q" placeholder="Workflow, PrepID, Output Dataset, etc.">
           </div>
-          <button type="submit" class="btn btn-outline-primary" value="Search">Search</button>
+          <button type="submit" class="btn btn-outline-primary" style="padding: 2px 12px" value="Search">Search</button>
         </form>
       </li>
     </ul>
@@ -51,7 +51,7 @@
               {% if workflow.ProcessingString | length > 0 %}
                   <small>Processing string:</small> <a href="0?processing_string={{ workflow.ProcessingString }}">{{ workflow.ProcessingString }}</a><br>
               {% endif %}
-              <small><a href="https://cmsweb.cern.ch/reqmgr2/data/request?name={{ workflow.RequestName }}">ReqMgr2</a></small><br>
+              <small><a target="_blank" href="https://cmsweb.cern.ch/reqmgr2/fetch?rid={{ workflow.RequestName }}">ReqMgr2</a></small><br>
               <small><a href="get_json/{{ workflow._id }}">View&nbsp;JSON</a></small><br>
           </td>
           <td>
@@ -62,8 +62,8 @@
                     {% for request in workflow.Requests %}
                       <li>
                         <a href="0?request={{ request }}">{{ request }}</a>
-                        <small><a href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request }}">McM</a></small>
-                        <small><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request }}">pMp</a></small>
+                        <small><a target="_blank" href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request }}">McM</a></small>
+                        <small><a target="_blank" href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request }}">pMp</a></small>
                       </li>
                     {% endfor %}
                   </ul>
@@ -75,8 +75,8 @@
                     {% for campaign in workflow.Campaigns %}
                       <li>
                         <a href="0?campaign={{ campaign }}">{{ campaign }}</a>
-                        <small><a href="https://cms-pdmv.cern.ch/mcm/campaigns?prepid={{ campaign }}">McM</a></small>
-                        <small><a href="https://cms-pdmv.cern.ch/pmp/historical?r={{ campaign }}">pMp</a></small>
+                        <small><a target="_blank" href="https://cms-pdmv.cern.ch/mcm/campaigns?prepid={{ campaign }}">McM</a></small>
+                        <small><a target="_blank" href="https://cms-pdmv.cern.ch/pmp/historical?r={{ campaign }}">pMp</a></small>
                       </li>
                     {% endfor %}
                   </ul>
@@ -105,7 +105,7 @@
                     <small>completed:</small> {{dataset.CompletedPerc}}%,
                     <small>events:</small> {{dataset.Events}},
                     <small>type:</small> {{dataset.Type}},
-                    <a href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a><br>
+                    <a target="_blank" href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a><br>
                     <small><a href="0?dataset={{ dataset.Name }}">{{ dataset.Name }}</a></small>
                 </li>
               {% endfor %}
