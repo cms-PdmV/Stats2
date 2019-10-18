@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, make_response, redirect
 from flask_restful import Api
 from couchdb_database import Database
-from utils import setup_file_logging, make_simple_request
+from utils import setup_file_logging
 from stats_update import StatsUpdate
 import json
 import time
@@ -12,6 +12,7 @@ app = Flask(__name__,
             static_folder="./html/static",
             template_folder="./html")
 api = Api(app)
+
 
 @app.route('/get_json/<string:workflow_name>')
 @app.route('/api/get_json/<string:workflow_name>')
@@ -63,12 +64,16 @@ def html_get(page=0):
                            'Events': 0,
                            'Type': 'NONE',
                            'CompletedPerc': '0.0',
-                           'Datatier': dataset.split('/')[-1]}
+                           'Datatier': dataset.split('/')[-1],
+                           'Size': -1,
+                           'NiceSize': '0B'}
             for history_entry in reversed(req['EventNumberHistory']):
                 history_entry = history_entry['Datasets']
                 if dataset in history_entry:
                     new_dataset['Events'] = history_entry[dataset]['Events']
                     new_dataset['Type'] = history_entry[dataset]['Type']
+                    new_dataset['Size'] = history_entry[dataset].get('Size', -1)
+                    new_dataset['NiceSize'] = get_nice_size(new_dataset['Size'])
                     if total_events > 0:
                         new_dataset['CompletedPerc'] = '%.2f' % (new_dataset['Events'] / total_events * 100.0)
 
@@ -188,6 +193,17 @@ def get_unique_list(input_list):
             new_list.append(element)
 
     return new_list
+
+
+def get_nice_size(size):
+    if size < 1024:
+        return '%sB' % (size)
+    elif size < 1048576:
+        return '%.2fKB' % (size / 1024.0)
+    elif size < 1073741824:
+        return '%.2fMB' % (size / 1048576.0)
+    else:
+        return '%.2fGB' % (size / 1073741824.0)
 
 
 def run_flask():
