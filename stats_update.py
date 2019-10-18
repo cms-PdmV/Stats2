@@ -5,7 +5,7 @@ import json
 import traceback
 from utils import setup_console_logging
 from couchdb_database import Database
-from utils import make_cmsweb_request, pick_attributes, make_simple_request
+from utils import make_cmsweb_request, pick_attributes
 import subprocess
 
 
@@ -17,7 +17,9 @@ class StatsUpdate():
     def __init__(self):
         self.logger = logging.getLogger('logger')
         self.database = Database()
-        self.dataset_event_cache = {}
+        # Cache for DBS filesummaries calls
+        self.dataset_filesummaries_cache = {}
+        # Cache for DBS dataset info + filiesummaries calls
         self.dataset_info_cache = {}
 
     def perform_update(self, workflow_name=None, trigger_prod=False, trigger_dev=False):
@@ -110,7 +112,6 @@ class StatsUpdate():
             self.logger.info('Inserting %s' % (workflow_name))
             self.database.update_workflow(wf_dict_old)
             wf_dict_old = self.database.get_workflow(workflow_name)
-            # self.steal_history_from_old_stats(wf_dict_old)
 
         wf_dict['_rev'] = wf_dict_old['_rev']
         wf_dict['EventNumberHistory'] = wf_dict_old.get('EventNumberHistory', [])
@@ -209,23 +210,42 @@ class StatsUpdate():
 
         return new_list
 
+    def __get_filesummaries_from_dbs(self, dataset_name):
+        """
+        Get file summary from DBS for given dataset
+        """
+        query_url = '/dbs/prod/global/DBSReader/filesummaries?dataset=%s' % (dataset_name)
+        filesummaries = make_cmsweb_request(query_url)
+        if len(filesummaries) != 0:
+            return filesummaries[0]
+
+        return {}
+
     def get_event_count_from_dbs(self, dataset_name):
         """
         Get event count for specified dataset from DBS.
         """
-        if dataset_name in self.dataset_event_cache:
-            num_event = self.dataset_event_cache[dataset_name]
-            self.logger.info('Found number of events (%s) for %s in cache' % (num_event, dataset_name))
-            return num_event
+        if dataset_name not in self.dataset_filesummaries_cache:
+            file_summary = self.__get_filesummaries_from_dbs(dataset_name)
+            self.dataset_filesummaries_cache[dataset_name] = file_summary
+        else:
+            file_summary = self.dataset_filesummaries_cache[dataset_name]
 
-        query_url = '/dbs/prod/global/DBSReader/filesummaries?dataset=%s' % (dataset_name)
-        filesummaries = make_cmsweb_request(query_url)
-        num_event = 0
-        if len(filesummaries) != 0:
-            num_event = int(filesummaries[0]['num_event'])
-
-        self.dataset_event_cache[dataset_name] = num_event
+        num_event = int(file_summary.get('num_event', 0))
         return num_event
+
+    def get_dataset_size_from_dbs(self, dataset_name):
+        """
+        Get size for specified dataset from DBS.
+        """
+        if dataset_name not in self.dataset_filesummaries_cache:
+            file_summary = self.__get_filesummaries_from_dbs(dataset_name)
+            self.dataset_filesummaries_cache[dataset_name] = file_summary
+        else:
+            file_summary = self.dataset_filesummaries_cache[dataset_name]
+
+        file_size = int(file_summary.get('file_size', 0))
+        return file_size
 
     def get_new_history_entry(self, wf_dict, depth=0):
         """
@@ -241,40 +261,59 @@ class StatsUpdate():
         output_datasets_to_query = []
         for output_dataset in set(output_datasets):
             if output_dataset in self.dataset_info_cache:
+                # Trying to find type, events and size in cache
                 cache_entry = self.dataset_info_cache[output_dataset]
-                self.logger.info('Found %s dataset info in cache: %s %s' % (output_dataset,
-                                                                            cache_entry['Type'],
-                                                                            cache_entry['Events']))
+                self.logger.info('Found %s dataset info in cache. Type: %s, events: %s, size: %s' % (output_dataset,
+                                                                                                     cache_entry['Type'],
+                                                                                                     cache_entry['Events'],
+                                                                                                     cache_entry['Size']))
                 history_entry['Datasets'][output_dataset] = cache_entry
                 output_datasets_set.remove(output_dataset)
             else:
+                # Add dataset to list of datasets that are not in cache
                 output_datasets_to_query.append(output_dataset)
 
         if output_datasets_to_query:
+            # Get datasets that were not in cache
             dbs_dataset_list = make_cmsweb_request(dataset_list_url, {'dataset': output_datasets_to_query, 'detail': 1})
         else:
             self.logger.info('Not doing a request to %s because all datasets were in cache' % (dataset_list_url))
             dbs_dataset_list = []
 
         for dbs_dataset in dbs_dataset_list:
+            # Get events and size for newly queried datasets and add them to cache
             dataset_name = dbs_dataset['dataset']
-            history_entry['Datasets'][dataset_name] = {'Type': dbs_dataset['dataset_access_type'],
-                                                       'Events': self.get_event_count_from_dbs(dataset_name)}
+            dataset_access_type = dbs_dataset['dataset_access_type']
+            dataset_events = self.get_event_count_from_dbs(dataset_name)
+            dataset_size = self.get_dataset_size_from_dbs(dataset_name)
+            history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
+                                                       'Events': dataset_events,
+                                                       'Size': dataset_size}
+            # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events and %s type for %s (%s)' % (history_entry['Datasets'][dataset_name]['Events'],
-                                                                            history_entry['Datasets'][dataset_name]['Type'],
-                                                                            dataset_name,
-                                                                            wf_dict.get('_id')))
+            self.logger.info('Setting %s events, %s size and %s type for %s (%s)' % (dataset_events,
+                                                                                     dataset_size,
+                                                                                     dataset_access_type,
+                                                                                     dataset_name,
+                                                                                     wf_dict.get('_id')))
             output_datasets_set.remove(dataset_name)
 
         for dataset_name in output_datasets_set:
-            history_entry['Datasets'][dataset_name] = {'Type': 'NONE',
-                                                       'Events': 0}
+            # Datasets that were not in the cache and not in response of query, make them NONE type with 0 events and 0 size
+            dataset_access_type = 'NONE'
+            dataset_events = 0
+            dataset_size = 0
+            # Setting defaults
+            history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
+                                                       'Events': dataset_events,
+                                                       'Size': dataset_size}
+            # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events and %s type for %s (%s)' % (history_entry['Datasets'][dataset_name]['Events'],
-                                                                            history_entry['Datasets'][dataset_name]['Type'],
-                                                                            dataset_name,
-                                                                            wf_dict.get('_id')))
+            self.logger.info('Setting %s events, %s size and %s type for %s (%s)' % (dataset_events,
+                                                                                     dataset_size,
+                                                                                     dataset_access_type,
+                                                                                     dataset_name,
+                                                                                     wf_dict.get('_id')))
 
         if len(history_entry['Datasets']) != len(set(output_datasets)):
             self.logger.error('Wrong number of datasets for %s. '
@@ -565,37 +604,6 @@ class StatsUpdate():
 
         self.logger.info('Found %d workflows which are currently putting data to DBS' % (len(workflow_list)))
         return workflow_list
-
-    def steal_history_from_old_stats(self, wf_dict):
-        from time import strptime, mktime
-        self.logger.info('Stealing history for %s from old Stats... ;)' % (wf_dict['_id']))
-        if 'EventNumberHistory' not in wf_dict:
-            wf_dict['EventNumberHistory'] = []
-
-        try:
-            stats_url = "http://vocms074:5984/stats/%s" % (wf_dict['_id'])
-            stats_wf = make_simple_request(stats_url)
-            stats_history = stats_wf.get('pdmv_monitor_history', [])
-            for stats_history_entry in stats_history:
-                timestamp = mktime(strptime(stats_history_entry['pdmv_monitor_time']))
-                new_history_entry = {'Time': int(timestamp), 'Datasets': {}}
-                for dataset, events_dict in stats_history_entry.get('pdmv_dataset_statuses', {}).items():
-                    type_in_stats = events_dict.get('pdmv_status_in_DAS', 'NONE')
-                    if not type_in_stats:
-                        type_in_stats = 'NONE'
-
-                    events_in_stats = int(events_dict.get('pdmv_evts_in_DAS', 0))
-                    new_history_entry['Datasets'][dataset] = {'Events': events_in_stats,
-                                                              'Type': type_in_stats}
-
-                self.add_history_entry_to_workflow(wf_dict, new_history_entry)
-
-            def sort_by_time(history_entry):
-                return history_entry['Time']
-
-            wf_dict['EventNumberHistory'].sort(key=sort_by_time)
-        except Exception as ex:
-            self.logger.error(ex)
 
     def get_list_of_previously_crashed_workflows(self):
         """

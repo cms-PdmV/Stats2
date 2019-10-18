@@ -1,6 +1,5 @@
 import json
 import logging
-from urllib.request import Request, urlopen
 from connection_wrapper import ConnectionWrapper
 from logging import handlers
 import time
@@ -34,11 +33,6 @@ def make_cmsweb_request(query_url, data=None, timeout=90, keep_open=True):
                                                                       json.dumps(data, indent=4),
                                                                       request_finish_time - request_start_time))
     return json.loads(response.decode('utf-8'))
-
-
-def make_simple_request(url):
-    req = Request(url)
-    return json.loads(urlopen(req).read().decode('utf-8'))
 
 
 def pick_attributes(old_dict, attributes, skip_non_existing=True):

@@ -104,6 +104,7 @@
                     <small>datatier:</small> {{dataset.Datatier}},
                     <small>completed:</small> {{dataset.CompletedPerc}}%,
                     <small>events:</small> {{dataset.Events}},
+                    {% if dataset.Size > 0 %}<small>size:</small> <span title="{{dataset.Size}} bytes">{{dataset.NiceSize}}</span>,{% endif %}
                     <small>type:</small> {{dataset.Type}},
                     <a target="_blank" href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a><br>
                     <small><a href="0?dataset={{ dataset.Name }}">{{ dataset.Name }}</a></small>
