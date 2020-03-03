@@ -196,14 +196,17 @@ def get_unique_list(input_list):
 
 
 def get_nice_size(size):
-    if size < 1024:
+    base = 1000.0
+    if size < base:
         return '%sB' % (size)
-    elif size < 1048576:
-        return '%.2fKB' % (size / 1024.0)
-    elif size < 1073741824:
-        return '%.2fMB' % (size / 1048576.0)
+    elif size < base**2:
+        return '%.2fKB' % (size / base)
+    elif size < base**3:
+        return '%.2fMB' % (size / base**2)
+    elif size < base**4:
+        return '%.2fGB' % (size / base**3)
     else:
-        return '%.2fGB' % (size / 1073741824.0)
+        return '%.2fTB' % (size / base**4)
 
 
 def run_flask():
