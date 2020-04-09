@@ -18,10 +18,7 @@ Preview one request (NAME is request name):
 ```
 python3 stats_update.py --action see --name NAME
 ```
-Drop all databases (I don't know why this function is still here):
-```
-python3 stats_update.py --action drop
-```
+
 Note that update actions require two environment variables: `USERKEY` and `USERCRT` which should point to user GRID certificate and key files.
 
 ## Installation
@@ -29,7 +26,7 @@ Note that update actions require two environment variables: `USERKEY` and `USERC
 Install Python 3.6 and pip3
 ```
 yum install -y python36.x86_64
-python3.6 -m ensurepip --default-pi
+python3.6 -m ensurepip --default-pip
 ```
 ### CouchDB
 ##### Add CouchDB repo
