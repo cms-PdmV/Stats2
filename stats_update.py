@@ -215,18 +215,21 @@ class StatsUpdate():
         Get file summary from DBS for given dataset
         """
         query_url = '/dbs/prod/global/DBSReader/filesummaries?dataset=%s' % (dataset_name)
+        if dataset_name in ('PRODUCTION', 'VALID'):
+            query_url += '&validFileOnly=1'
+
         filesummaries = make_cmsweb_request(query_url)
         if len(filesummaries) != 0:
             return filesummaries[0]
 
         return {}
 
-    def get_event_count_from_dbs(self, dataset_name):
+    def get_event_count_from_dbs(self, dataset_name, dataset_access_type=None):
         """
         Get event count for specified dataset from DBS.
         """
         if dataset_name not in self.dataset_filesummaries_cache:
-            file_summary = self.__get_filesummaries_from_dbs(dataset_name)
+            file_summary = self.__get_filesummaries_from_dbs(dataset_name, dataset_access_type)
             self.dataset_filesummaries_cache[dataset_name] = file_summary
         else:
             file_summary = self.dataset_filesummaries_cache[dataset_name]
@@ -284,7 +287,7 @@ class StatsUpdate():
             # Get events and size for newly queried datasets and add them to cache
             dataset_name = dbs_dataset['dataset']
             dataset_access_type = dbs_dataset['dataset_access_type']
-            dataset_events = self.get_event_count_from_dbs(dataset_name)
+            dataset_events = self.get_event_count_from_dbs(dataset_name, dataset_access_type)
             dataset_size = self.get_dataset_size_from_dbs(dataset_name)
             history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
                                                        'Events': dataset_events,
