@@ -40,7 +40,7 @@ class StatsUpdate():
         and update event recalculation
         """
         self.logger.info('Will update only one workflow: %s' % (workflow_name))
-        self.update_one(workflow_name)
+        self.update_one(workflow_name, trigger_prod, trigger_dev)
         self.recalculate_one(workflow_name)
 
     def perform_update_new(self, trigger_prod=False, trigger_dev=False):
@@ -122,7 +122,7 @@ class StatsUpdate():
         if old_wf_dict_string != new_wf_dict_string:
             self.database.update_workflow(wf_dict)
             self.logger.info('Updated %s in %.3fs' % (workflow_name, (update_end - update_start)))
-            self.trigger_outside(workflow_name, trigger_prod, trigger_dev)
+            self.trigger_outside(wf_dict, trigger_prod, trigger_dev)
         else:
             self.logger.info('Did not update %s because it did not change. Time: %.3fs' % (workflow_name,
                                                                                            (update_end - update_start)))
@@ -152,7 +152,7 @@ class StatsUpdate():
         if added_history_entry:
             self.database.update_workflow(workflow)
             self.logger.info('Updated event count for %s in %.3fs' % (workflow_name, (recalc_end - recalc_start)))
-            self.trigger_outside(workflow_name, trigger_prod, trigger_dev)
+            self.trigger_outside(workflow, trigger_prod, trigger_dev)
         else:
             self.logger.info('Did not update event count for %s because it did not change. '
                              'Time: %.3fs' % (workflow_name,
@@ -630,14 +630,23 @@ class StatsUpdate():
             workflows.append(workflow_name)
             self.database.set_setting('failed_workflows', workflows)
 
-    def trigger_outside(self, workflow_name, trigger_prod=False, trigger_dev=False):
+    def trigger_outside(self, workflow, trigger_prod=False, trigger_dev=False):
         """
         Trigger something outside (McM) when workflow is updated
         """
+        workflow_name = workflow['_id']
+        workflow_type = workflow.get('RequestType')
         outside_urls = []
+        self.logger.info('Trigger outside for %s (%s)' % (workflow_name, workflow_type))
         if trigger_prod:
-            outside_urls.append({'url': 'https://cms-pdmv.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/%s' % (workflow_name),
-                                 'cookie': 'prod_cookie.txt'})
+            if workflow_type.lower() == 'rereco':
+                outside_urls.append({'url': 'https://pdmv-dev-proxy.web.cern.ch/rereco/api/requests/update_workflows',
+                                     'cookie': 'rereco_cookie.txt',
+                                     'data': {'prepid': workflow.get('PrepID', '')},
+                                     'method': 'POST'})
+            else:
+                outside_urls.append({'url': 'https://cms-pdmv.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/%s' % (workflow_name),
+                                     'cookie': 'prod_cookie.txt'})
 
         if trigger_dev:
             outside_urls.append({'url': 'https://cms-pdmv-dev.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/%s' % (workflow_name),
@@ -645,8 +654,10 @@ class StatsUpdate():
 
         for outside in outside_urls:
             try:
-                self.logger.info('Triggering outside (McM) for %s' % (workflow_name))
+                self.logger.info('Triggering outside for %s' % (workflow_name))
                 args = ['curl',
+                        '-X',
+                        outside.get('method', 'GET'),
                         outside['url'],
                         '-s',  # Silent
                         '-k',  # Ignore invalid https certificate
@@ -657,6 +668,11 @@ class StatsUpdate():
                 if outside.get('cookie'):
                     self.logger.info('Append cookie "%s" while making request for %s' % (outside['cookie'], workflow_name))
                     args += ['--cookie', outside['cookie']]
+
+                if outside.get('data'):
+                    self.logger.info('Adding data "%s" while making request for %s' % (outside['data'], workflow_name))
+                    args += ['-d', '\'%s\'' % (json.dumps(outside['data']))]
+                    args += ['-H', '"Content-Type: application/json"']
 
                 args = ' '.join(args)
                 proc = subprocess.Popen(args, stdout=subprocess.PIPE, shell=True)
