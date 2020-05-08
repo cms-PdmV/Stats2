@@ -210,12 +210,12 @@ class StatsUpdate():
 
         return new_list
 
-    def __get_filesummaries_from_dbs(self, dataset_name):
+    def __get_filesummaries_from_dbs(self, dataset_name, dataset_access_type=None):
         """
         Get file summary from DBS for given dataset
         """
         query_url = '/dbs/prod/global/DBSReader/filesummaries?dataset=%s' % (dataset_name)
-        if dataset_name in ('PRODUCTION', 'VALID'):
+        if dataset_access_type in ('PRODUCTION', 'VALID'):
             query_url += '&validFileOnly=1'
 
         filesummaries = make_cmsweb_request(query_url)
