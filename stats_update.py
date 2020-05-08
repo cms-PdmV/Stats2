@@ -649,8 +649,8 @@ class StatsUpdate():
         self.logger.info('Trigger outside for %s (%s)' % (workflow_name, workflow_type))
         if trigger_prod:
             if workflow_type.lower() == 'rereco':
-                outside_urls.append({'url': 'https://pdmv-dev-proxy.web.cern.ch/rereco/api/requests/update_workflows',
-                                     'cookie': 'rereco_cookie.txt',
+                outside_urls.append({'url': 'https://cms-pdmv.cern.ch/rereco/api/requests/update_workflows',
+                                     'cookie': 'prod_cookie.txt',
                                      'data': {'prepid': workflow.get('PrepID', '')},
                                      'method': 'POST'})
             else:
