@@ -598,9 +598,15 @@ class StatsUpdate():
         """
         self.logger.info('Will get list of workflows which are currently putting data to DBS')
         url = '/wmstatsserver/data/filtered_requests?mask=RequestName'
-        workflow_list = make_cmsweb_request(url, timeout=600, keep_open=False)
+        try:
+            workflow_list = make_cmsweb_request(url, timeout=600, keep_open=False)
+        except AttributeError as ar:
+            self.logger.error(er)
+            workflow_list = None
+
         if workflow_list is None:
             self.logger.error('Could not get list of workflows from wmstats')
+            return []
 
         workflow_list = workflow_list.get('result', [])
         workflow_list = [workflow['RequestName'] for workflow in workflow_list]
