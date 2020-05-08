@@ -601,7 +601,7 @@ class StatsUpdate():
         try:
             workflow_list = make_cmsweb_request(url, timeout=600, keep_open=False)
         except AttributeError as ar:
-            self.logger.error(er)
+            self.logger.error(ar)
             workflow_list = None
 
         if workflow_list is None:
