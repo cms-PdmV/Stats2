@@ -160,6 +160,25 @@ python3 main.py --host 0.0.0.0 --port 8000 &
 python3 main.py --debug
 ```
 
+### Running Stats2 as a service
+Create a file `/etc/systemd/system/stats.service` to run Stats2 as a service. File contents:
+```
+[Unit]
+Description = PdmVs Stats service website
+After = network.target
+
+[Service]
+Type = simple
+WorkingDirectory=/home/pdmvserv/Stats2
+ExecStart = /bin/python3 main.py --host 0.0.0.0 --port 80
+Restart=on-failure
+RestartSec=20
+ExecStop=/bin/kill -TERM \$MAINPID
+
+[Install]
+WantedBy = multi-user.target
+```
+
 ### Perform update
 Provide paths to grid certificate and key files (for cmsweb interaction) and authorization string and start the update. Basic authentication header consists of words Basic and base64 encoded "username:password" value, for example: `"Basic dXNlcjpwYXNzd29yZA=="`.
 
@@ -185,4 +204,3 @@ curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/req
 
 curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_view_cleanup -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
 ```
-
