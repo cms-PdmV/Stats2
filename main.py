@@ -1,22 +1,27 @@
-from flask import Flask, render_template, request, make_response, redirect
-from flask_restful import Api
-from couchdb_database import Database
-from utils import setup_file_logging
-from stats_update import StatsUpdate
+"""
+Module that starts webserver and has all it's endpoints
+"""
 import json
 import time
 import argparse
+from flask import Flask, render_template, request, make_response, redirect
+from flask_restful import Api
+from couchdb_database import Database
+from utils import setup_console_logging, get_unique_list, get_nice_size
 
 
 app = Flask(__name__,
-            static_folder="./html/static",
-            template_folder="./html")
+            static_folder='./html/static',
+            template_folder='./html')
 api = Api(app)
 
 
 @app.route('/get_json/<string:workflow_name>')
 @app.route('/api/get_json/<string:workflow_name>')
 def html_view_json(workflow_name):
+    """
+    Return one workflow
+    """
     database = Database()
     workflow = database.get_workflow(workflow_name)
     if workflow is None:
@@ -32,6 +37,11 @@ def html_view_json(workflow_name):
 @app.route('/')
 @app.route('/<int:page>')
 def html_get(page=0):
+    """
+    Return HTML of selected page
+    This method also prettifies some dates, makes campaigns and requests lists unique,
+    calculates completness of output datasets
+    """
     database = Database()
     workflows = get_page(page)
     pages = [page, page > 0, database.PAGE_SIZE == len(workflows)]
@@ -43,16 +53,20 @@ def html_get(page=0):
 
         req['FirstStatus'] = ''
         req['LastStatus'] = ''
-        if len(req.get('RequestTransition', [])) > 0:
+        if req.get('RequestTransition', []):
             first_transition = req['RequestTransition'][0]
             last_transition = req['RequestTransition'][-1]
             if 'Status' in first_transition and 'UpdateTime' in first_transition:
-                req['FirstStatus'] = '%s (%s)' % (first_transition['Status'],
-                                                  time.strftime(datetime_format, time.localtime(first_transition['UpdateTime'])))
+                status = first_transition['Status']
+                update_time = time.strftime(datetime_format,
+                                            time.localtime(first_transition['UpdateTime']))
+                req['FirstStatus'] = f'{status} ({update_time})'
 
             if 'Status' in last_transition and 'UpdateTime' in last_transition:
-                req['LastStatus'] = '%s (%s)' % (last_transition['Status'],
-                                                 time.strftime(datetime_format, time.localtime(last_transition['UpdateTime'])))
+                status = last_transition['Status']
+                update_time = time.strftime(datetime_format,
+                                            time.localtime(last_transition['UpdateTime']))
+                req['FirstStatus'] = f'{status} ({update_time})'
 
         req['LastUpdate'] = time.strftime(datetime_format, time.localtime(req['LastUpdate']))
         req['Requests'] = get_unique_list(req.get('Requests', []))
@@ -75,7 +89,8 @@ def html_get(page=0):
                     new_dataset['Size'] = history_entry[dataset].get('Size', -1)
                     new_dataset['NiceSize'] = get_nice_size(new_dataset['Size'])
                     if total_events > 0:
-                        new_dataset['CompletedPerc'] = '%.2f' % (new_dataset['Events'] / total_events * 100.0)
+                        percentage = new_dataset['Events'] / total_events * 100.0
+                        new_dataset['CompletedPerc'] = '%.2f' % (percentage)
 
                     break
 
@@ -94,58 +109,42 @@ def html_get(page=0):
                            query=request.query_string.decode('utf-8'))
 
 
-@app.route('/update/<string:workflow_name>')
-def html_update(workflow_name):
-    StatsUpdate().perform_update(workflow_name=workflow_name)
-    return redirect("/?workflow_name=" + workflow_name, code=302)
-
-
 @app.route('/search')
 def html_search():
+    """
+    Perform search on given input and redirect to correct search URL
+    """
+    query = request.args.get('q', '').strip()
+    if not query:
+        return redirect('/stats', code=302)
+
     database = Database()
-    q = request.args.get('q')
-    if not q:
-        return redirect("/stats", code=302)
+    if database.get_workflows_with_prepid(query, page_size=1):
+        return redirect('/stats?prepid=' + query, code=302)
 
-    q = q.strip()
-    if database.get_workflows_with_prepid(q):
-        return redirect("/stats?prepid=" + q, code=302)
-    elif database.get_workflows_with_dataset(q):
-        return redirect("/stats?dataset=" + q, code=302)
-    elif database.get_workflows_with_campaign(q):
-        return redirect("/stats?campaign=" + q, code=302)
-    elif database.get_workflows_with_type(q):
-        return redirect("/stats?type=" + q, code=302)
-    elif database.get_workflows_with_processing_string(q):
-        return redirect("/stats?processing_string=" + q, code=302)
-    elif database.get_workflows_with_request(q):
-        return redirect("/stats?request=" + q, code=302)
+    if database.get_workflows_with_dataset(query, page_size=1):
+        return redirect('/stats?dataset=' + query, code=302)
 
-    return redirect("/stats?workflow_name=" + q, code=302)
+    if database.get_workflows_with_campaign(query, page_size=1):
+        return redirect('/stats?campaign=' + query, code=302)
 
+    if database.get_workflows_with_type(query, page_size=1):
+        return redirect('/stats?type=' + query, code=302)
 
-# JSON responses
-@app.route('/api/get')
-@app.route('/api/get/<int:page>')
-def api_get(page=0):
-    workflows = get_page(page)
-    workflows = list(filter(lambda req: '_design' not in req['_id'], workflows))
-    response = make_response(json.dumps(workflows,
-                                        indent=4,
-                                        sort_keys=True),
-                             200)
-    response.headers['Content-Type'] = 'application/json'
-    return response
+    if database.get_workflows_with_processing_string(query, page_size=1):
+        return redirect('/stats?processing_string=' + query, code=302)
 
+    if database.get_workflows_with_request(query, page_size=1):
+        return redirect('/stats?request=' + query, code=302)
 
-@app.route('/api/update/<string:workflow_name>')
-def api_update(workflow_name):
-    StatsUpdate().perform_update(workflow_name=workflow_name)
-    return redirect("/api/get?workflow_name=" + workflow_name, code=302)
+    return redirect('/stats?workflow_name=' + query, code=302)
 
 
 # Actual get method
 def get_page(page=0):
+    """
+    Return a list of workflows based on url query parameters (if any)
+    """
     database = Database()
     prepid = request.args.get('prepid')
     dataset = request.args.get('dataset')
@@ -166,51 +165,45 @@ def get_page(page=0):
 
     else:
         if prepid is not None:
-            workflows = database.get_workflows_with_prepid(prepid, page=page, include_docs=True)
+            workflows = database.get_workflows_with_prepid(prepid,
+                                                           page=page,
+                                                           include_docs=True)
         elif dataset is not None:
-            workflows = database.get_workflows_with_dataset(dataset, page=page, include_docs=True)
+            workflows = database.get_workflows_with_dataset(dataset,
+                                                            page=page,
+                                                            include_docs=True)
         elif campaign is not None:
-            workflows = database.get_workflows_with_campaign(campaign, page=page, include_docs=True)
+            workflows = database.get_workflows_with_campaign(campaign,
+                                                             page=page,
+                                                             include_docs=True)
         elif workflow_type is not None:
-            workflows = database.get_workflows_with_type(workflow_type, page=page, include_docs=True)
+            workflows = database.get_workflows_with_type(workflow_type,
+                                                         page=page,
+                                                         include_docs=True)
         elif processing_string is not None:
-            workflows = database.get_workflows_with_processing_string(processing_string, page=page, include_docs=True)
+            workflows = database.get_workflows_with_processing_string(processing_string,
+                                                                      page=page,
+                                                                      include_docs=True)
         elif request_name is not None:
-            workflows = database.get_workflows_with_request(request_name, page=page, include_docs=True)
+            workflows = database.get_workflows_with_request(request_name,
+                                                            page=page,
+                                                            include_docs=True)
         else:
-            workflows = database.get_workflows(page=page, include_docs=True)
+            workflows = database.get_workflows(page=page,
+                                               include_docs=True)
 
     if prepid is not None or dataset is not None or request_name is not None:
-        workflows = sorted(workflows, key=lambda wf: '_'.join(wf.get('RequestName').split('_')[-3:-1]))
+        workflows = sorted(workflows,
+                           key=lambda wf: '_'.join(wf.get('RequestName').split('_')[-3:-1]))
 
     return workflows
 
 
-def get_unique_list(input_list):
-    new_list = []
-    for element in input_list:
-        if element not in new_list:
-            new_list.append(element)
-
-    return new_list
-
-
-def get_nice_size(size):
-    base = 1000.0
-    if size < base:
-        return '%sB' % (size)
-    elif size < base**2:
-        return '%.2fKB' % (size / base)
-    elif size < base**3:
-        return '%.2fMB' % (size / base**2)
-    elif size < base**4:
-        return '%.2fGB' % (size / base**3)
-    else:
-        return '%.2fTB' % (size / base**4)
-
-
 def run_flask():
-    setup_file_logging()
+    """
+    Parse command line arguments and start flask web server
+    """
+    setup_console_logging()
     parser = argparse.ArgumentParser(description='Stats2')
     parser.add_argument('--port',
                         help='Port, default is 8001')
