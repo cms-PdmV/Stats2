@@ -3,6 +3,7 @@ import time
 import argparse
 import json
 import traceback
+import os
 from utils import setup_console_logging
 from couchdb_database import Database
 from utils import make_cmsweb_request, pick_attributes
@@ -722,6 +723,10 @@ def main():
     trigger_dev = args.get('trigger_dev', False)
 
     if action == 'update':
+        if not os.environ.get('STATS_DB_AUTH_HEADER'):
+            logger.error('STATS_DB_AUTH_HEADER is missing')
+            return
+
         stats_update = StatsUpdate()
         stats_update.perform_update(name, trigger_prod, trigger_dev)
     elif action == 'see':

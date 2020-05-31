@@ -1,11 +1,11 @@
 # Stats2
 ## What is it?
 Stats2 takes list of requests from *RequestManager2* and stores smaller (not all attributes) copy of all requests. It also takes nuber of open/done events from *dbs* and collects history for each dataset in all requests.
-Main improvement over old Stats is that Stats2 fetch only changes of workflows since last update and fetches events only for these workflows which are currently in production. As a result, updates take about 10-20 minutes instead of 1-2 hours.
+Main improvement over old Stats is that Stats2 fetch only changes of workflows since last update and fetches events only for these workflows which are currently in production. As a result, updates take about 10-30 minutes instead of 1-2 hours.
 ## No Javascript*!
-Stats2 has almost no javascript. However, it uses Jinja2 templates a lot. Only Javascript bit is used for website search - to get value from input field.
+Stats2 website has absolutely no javascript! This leads to great compatibility and faster load times.
 ## Console usage
-Usually Stats2 should be viewed and controlled from web browser, but it  can be used as a python script as well:
+Usually Stats2 should be used from web browser, but it can be used as a python script as well:
 Update all requests:
 ```
 python3 stats_update.py --action update
@@ -55,7 +55,9 @@ sudo yum -y install couchdb
 ```
 CouchDB is installed to `/opt/couchdb` directory
 ##### Create views in CouchDB
-Campaigns (name:`campaigns`):
+Following views must be created in `requests` database, in `_designDoc` design document.
+
+Campaigns (view name:`campaigns`):
 ```
 function (doc) {
   if (doc.Campaigns) {
@@ -70,7 +72,7 @@ function (doc) {
   }
 }
 ```
-Output datasets (name:`outputDatasets`):
+Output datasets (view name:`outputDatasets`):
 ```
 function (doc) {
   var i;
@@ -81,7 +83,7 @@ function (doc) {
   }
 }
 ```
-PrepIDs (name:`prepids`):
+PrepIDs (view name:`prepids`):
 ```
 function (doc) {
   if (doc.PrepID) {
@@ -89,7 +91,7 @@ function (doc) {
   }
 }
 ```
-Request types (name:`types`):
+Request types (view name:`types`):
 ```
 function (doc) {
   if (doc.RequestType) {
@@ -97,7 +99,7 @@ function (doc) {
   }
 }
 ```
-Processing strings (name:`processingStrings`):
+Processing strings (view name:`processingStrings`):
 ```
 function (doc) {
   if (doc.ProcessingString && doc.ProcessingString.length > 0) {
@@ -105,6 +107,35 @@ function (doc) {
   }
 }
 ```
+Requests (tasks) (view name:`requests`):
+```
+function (doc) {
+  if (doc.Requests) {
+    addedRequests = {};
+    var i;
+    for (i = 0; i < doc.Requests.length; i++) {
+      if (!(doc.Requests[i] in addedRequests)) {
+        emit(doc.Requests[i], doc.RequestName);
+        addedRequests[doc.Requests[i]] = true;
+      }
+    }
+  }
+}
+```
+
+### Configure security
+Stats2 CouchDB should be available to everyone to read, but no one, except admin should be allowed to update it.
+
+In CouchDB settings: `require_valid_user` must be set to `false`.
+
+In `requests` and `settings` databaes a new design document must be created:
+```
+{
+  "_id": "_design/validate_write",
+  "validate_doc_update": "function (newDoc, oldDoc, userCtx) { if (userCtx.roles.indexOf('_admin') === -1) throw( { forbidden : 'Only admins can modify the database.'} ); }"
+}
+```
+This design document checks if user, who is trying to make changes, has `_admin` role.
 
 ### Install dependencies
 Install flask and flask_restful
@@ -114,7 +145,7 @@ sudo python3.6 -m pip install flask_restful
 ```
 ### Clone Stats2
 ```
-git clone https://github.com/justinasr/Stats2.git
+git clone https://github.com/cms-PdmV/Stats2.git
 ```
 ## Running it
 ### Launch the website
@@ -128,10 +159,30 @@ python3 main.py &
 python3 main.py --host 0.0.0.0 --port 8000 &
 python3 main.py --debug
 ```
+
 ### Perform update
-Provide the grid certificate and key (for cmsweb interaction) and start the initial update
+Provide paths to grid certificate and key files (for cmsweb interaction) and authorization string and start the update. Basic authentication header consists of words Basic and base64 encoded "username:password" value, for example: "Basic dXNlcjpwYXNzd29yZA==".
+
 ```
 export USERCRT=/.../user.crt.pem
 export USERKEY=/.../user.key.pem
+export STATS_DB_AUTH_HEADER="Basic base64encodedvalue"
 python3 stats_updater.py --action update
 ```
+
+### Database and view compaction
+Periodic database compaction must be performed to prevent host of running out of space:
+```
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_compact -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/settings/_compact -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_compact/_designDoc/campaigns -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_compact/_designDoc/outputDatasets -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_compact/_designDoc/prepids -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_compact/_designDoc/processingStrings -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_compact/_designDoc/requests -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_compact/_designDoc/types -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+
+curl -s -k -H "Content-Type: application/json" -X POST http://localhost:5984/requests/_view_cleanup -H "Authorization: Basic $STATS_DB_AUTH_HEADER"
+```
+

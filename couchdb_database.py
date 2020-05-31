@@ -1,3 +1,4 @@
+import os
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 import logging
@@ -19,6 +20,7 @@ class Database:
         self.workflows_processing_string_view = self.workflows_table + '/_design/_designDoc/_view/processingStrings'
         self.workflows_requests_view = self.workflows_table + '/_design/_designDoc/_view/requests'
         self.settings_table = self.database_url + '/settings'
+        self.auth_header = os.environ.get('STATS_DB_AUTH_HEADER')
 
     def update_workflow(self, workflow, update_timestamp=True):
         try:
@@ -28,7 +30,7 @@ class Database:
             url = self.workflows_table + '/' + workflow['_id']
             self.make_request(url, workflow, 'PUT')
         except HTTPError as err:
-            self.logger.error(str(err))
+            self.logger.error('Error updating workflow: %s', err)
 
     def delete_workflow(self, workflow_name):
         workflow = self.get_workflow(workflow_name)
@@ -161,5 +163,8 @@ class Database:
             data = data.encode("utf-8")
 
         req.add_header('Content-Type', 'application/json')
+        if self.auth_header:
+            req.add_header('Authorization', self.auth_header)
+
         response = json.loads(urlopen(req, data=data).read().decode('utf-8'))
         return response
