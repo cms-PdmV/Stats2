@@ -2,7 +2,7 @@
 ## What is it?
 Stats2 takes list of requests from *RequestManager2* and stores smaller (not all attributes) copy of all requests. It also takes nuber of open/done events from *dbs* and collects history for each dataset in all requests.
 Main improvement over old Stats is that Stats2 fetch only changes of workflows since last update and fetches events only for these workflows which are currently in production. As a result, updates take about 10-30 minutes instead of 1-2 hours.
-## No Javascript*!
+## No Javascript!
 Stats2 website has absolutely no javascript! This leads to great compatibility and faster load times.
 ## Console usage
 Usually Stats2 should be used from web browser, but it can be used as a python script as well:
@@ -161,7 +161,7 @@ python3 main.py --debug
 ```
 
 ### Perform update
-Provide paths to grid certificate and key files (for cmsweb interaction) and authorization string and start the update. Basic authentication header consists of words Basic and base64 encoded "username:password" value, for example: "Basic dXNlcjpwYXNzd29yZA==".
+Provide paths to grid certificate and key files (for cmsweb interaction) and authorization string and start the update. Basic authentication header consists of words Basic and base64 encoded "username:password" value, for example: `"Basic dXNlcjpwYXNzd29yZA=="`.
 
 ```
 export USERCRT=/.../user.crt.pem
