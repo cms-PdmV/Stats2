@@ -75,12 +75,12 @@ class Database:
         """
         Fetch workflows that have certain prepid (prepid of workflow, not request/task)
         """
-        include_docs = 'True' if include_docs else 'False'
+        include_docs_str = 'True' if include_docs else 'False'
         url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_prepid_view,
                                                                 prepid,
                                                                 page_size,
                                                                 page * page_size,
-                                                                include_docs)
+                                                                include_docs_str)
         rows = self.make_request(url)['rows']
         if include_docs:
             return [x['doc'] for x in rows]
@@ -91,12 +91,12 @@ class Database:
         """
         Fetch workflows that have certain output dataset
         """
-        include_docs = 'True' if include_docs else 'False'
+        include_docs_str = 'True' if include_docs else 'False'
         url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_output_datasets_view,
                                                                 dataset,
                                                                 page_size,
                                                                 page * page_size,
-                                                                include_docs)
+                                                                include_docs_str)
         rows = self.make_request(url)['rows']
         if include_docs:
             return [x['doc'] for x in rows]
@@ -107,12 +107,12 @@ class Database:
         """
         Fetch workflows that have certain campaign
         """
-        include_docs = 'True' if include_docs else 'False'
+        include_docs_str = 'True' if include_docs else 'False'
         url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_campaigns_view,
                                                                 campaign,
                                                                 page_size,
                                                                 page * page_size,
-                                                                include_docs)
+                                                                include_docs_str)
         rows = self.make_request(url)['rows']
         if include_docs:
             return [x['doc'] for x in rows]
@@ -123,12 +123,12 @@ class Database:
         """
         Fetch workflows that have certain RequestType
         """
-        include_docs = 'True' if include_docs else 'False'
+        include_docs_str = 'True' if include_docs else 'False'
         url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_type_view,
                                                                 workflow_type,
                                                                 page_size,
                                                                 page * page_size,
-                                                                include_docs)
+                                                                include_docs_str)
         rows = self.make_request(url)['rows']
         if include_docs:
             return [x['doc'] for x in rows]
@@ -139,12 +139,12 @@ class Database:
         """
         Fetch workflows that have certain processing string
         """
-        include_docs = 'True' if include_docs else 'False'
+        include_docs_str = 'True' if include_docs else 'False'
         url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_processing_string_view,
                                                                 workflow_processing_string,
                                                                 page_size,
                                                                 page * page_size,
-                                                                include_docs)
+                                                                include_docs_str)
         rows = self.make_request(url)['rows']
         if include_docs:
             return [x['doc'] for x in rows]
@@ -155,12 +155,12 @@ class Database:
         """
         Fetch workflows that have certain request
         """
-        include_docs = 'True' if include_docs else 'False'
+        include_docs_str = 'True' if include_docs else 'False'
         url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_requests_view,
                                                                 request_name,
                                                                 page_size,
                                                                 page * page_size,
-                                                                include_docs)
+                                                                include_docs_str)
         rows = self.make_request(url)['rows']
         if include_docs:
             return [x['doc'] for x in rows]
@@ -171,11 +171,11 @@ class Database:
         """
         Fetch workflows
         """
-        include_docs = 'True' if include_docs else 'False'
+        include_docs_str = 'True' if include_docs else 'False'
         url = '%s/_all_docs?limit=%d&skip=%d&include_docs=%s' % (self.workflows_table,
                                                                  page_size,
                                                                  page * page_size,
-                                                                 include_docs)
+                                                                 include_docs_str)
         rows = self.make_request(url)['rows']
         if include_docs:
             return [x['doc'] for x in rows]
