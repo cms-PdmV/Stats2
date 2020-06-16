@@ -66,7 +66,7 @@ def html_get(page=0):
                 status = last_transition['Status']
                 update_time = time.strftime(datetime_format,
                                             time.localtime(last_transition['UpdateTime']))
-                req['FirstStatus'] = f'{status} ({update_time})'
+                req['LastStatus'] = f'{status} ({update_time})'
 
         req['LastUpdate'] = time.strftime(datetime_format, time.localtime(req['LastUpdate']))
         req['Requests'] = get_unique_list(req.get('Requests', []))
