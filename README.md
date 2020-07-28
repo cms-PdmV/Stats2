@@ -128,7 +128,7 @@ Stats2 CouchDB should be available to everyone to read, but no one, except admin
 
 In CouchDB settings: `require_valid_user` must be set to `false`.
 
-In `requests` and `settings` databaes a new design document must be created:
+In `requests` and `settings` databases a new design document must be created:
 ```
 {
   "_id": "_design/validate_write",
