@@ -677,8 +677,13 @@ class StatsUpdate():
         outside_urls = []
         self.logger.info('Trigger outside for %s (%s)', workflow_name, workflow_type)
         if trigger_prod:
-            if workflow_type.lower() == 'rereco':
+            if workflow_type.lower() == 'rereco' or workflow.get('PrepID', '').startswith('ReReco-'):
                 outside_urls.append({'url': 'https://cms-pdmv.cern.ch/rereco/api/requests/update_workflows',
+                                     'cookie': 'prod_cookie.txt',
+                                     'data': {'prepid': workflow.get('PrepID', '')},
+                                     'method': 'POST'})
+            elif 'RVCMSSW' in workflow_name:
+                outside_urls.append({'url': 'https://cms-pdmv.cern.ch/relval/api/relvals/update_workflows',
                                      'cookie': 'prod_cookie.txt',
                                      'data': {'prepid': workflow.get('PrepID', '')},
                                      'method': 'POST'})
@@ -687,6 +692,18 @@ class StatsUpdate():
                                      'cookie': 'prod_cookie.txt'})
 
         if trigger_dev:
+            if workflow_type.lower() == 'rereco' or workflow.get('PrepID', '').startswith('ReReco-'):
+                outside_urls.append({'url': 'https://cms-pdmv-dev.cern.ch/rereco/api/requests/update_workflows',
+                                     'cookie': 'dev_cookie.txt',
+                                     'data': {'prepid': workflow.get('PrepID', '')},
+                                     'method': 'POST'})
+            elif 'RVCMSSW' in workflow_name:
+                outside_urls.append({'url': 'https://cms-pdmv-dev.cern.ch/relval/api/relvals/update_workflows',
+                                     'cookie': 'dev_cookie.txt',
+                                     'data': {'prepid': workflow.get('PrepID', '')},
+                                     'method': 'POST'})
+            else:
+
             outside_urls.append({'url': f'https://cms-pdmv-dev.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
                                  'cookie': 'dev_cookie.txt'})
 
