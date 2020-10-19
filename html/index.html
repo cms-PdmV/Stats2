@@ -109,7 +109,11 @@
                     <small>events:</small> {{dataset.Events}},
                     {% if dataset.Size > 0 %}<small>size:</small> <span title="{{dataset.Size}} bytes">{{dataset.NiceSize}}</span>,{% endif %}
                     <small>type:</small> {{dataset.Type}},
-                    <a target="_blank" href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a><br>
+                    <a target="_blank" href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a>
+                    {% if dataset.Datatier == 'DQMIO' %}
+                      <a target="_blank" href="https://cmsweb.cern.ch/reqmgr2/data/request?detail=true&inputdataset={{dataset.Name}}"><small>go to</small> harvesting job</a>
+                    {% endif %}
+                    <br>
                     <small><a href="0?dataset={{ dataset.Name }}">{{ dataset.Name }}</a></small>
                 </li>
               {% endfor %}
