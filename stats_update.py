@@ -703,9 +703,8 @@ class StatsUpdate():
                                      'data': {'prepid': workflow.get('PrepID', '')},
                                      'method': 'POST'})
             else:
-
-            outside_urls.append({'url': f'https://cms-pdmv-dev.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
-                                 'cookie': 'dev_cookie.txt'})
+                outside_urls.append({'url': f'https://cms-pdmv-dev.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
+                                     'cookie': 'dev_cookie.txt'})
 
         for outside in outside_urls:
             try:
