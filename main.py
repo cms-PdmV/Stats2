@@ -4,6 +4,7 @@ Module that starts webserver and has all it's endpoints
 import json
 import time
 import argparse
+import re
 from flask import Flask, render_template, request, make_response, redirect
 from flask_restful import Api
 from couchdb_database import Database
@@ -31,6 +32,41 @@ def html_view_json(workflow_name):
 
     response.headers['Content-Type'] = 'application/json'
     return response
+
+
+def matches_regex(value, regex):
+    """
+    Check if given string fully matches given regex
+    """
+    matcher = re.compile(regex)
+    match = matcher.fullmatch(value)
+    if match:
+        return True
+
+    return False
+
+
+def get_service_type(workflow):
+    prepid = workflow.get('PrepID')
+    if not prepid:
+        return 'unknown'
+
+    if matches_regex(prepid, '^ReReco-.*-[0-9]{5}$'):
+        return 'rereco_machine'
+
+    if matches_regex(prepid, '^ReReco-.*$'):
+        return 'rereco'
+
+    if matches_regex(prepid, '^CMSSW_.*-[0-9]{5}$'):
+        return 'relval_machine'
+
+    if matches_regex(prepid, '^CMSSW_.*'):
+        return 'relval'
+
+    if matches_regex(prepid, '^(task_)?[A-Z0-9]{3}-.*-[0-9]{5}$'):
+        return 'mc'
+
+    return 'unknown'
 
 
 # HTML responses
@@ -71,6 +107,30 @@ def html_get(page=0):
         req['LastUpdate'] = time.strftime(datetime_format, time.localtime(req['LastUpdate']))
         req['Requests'] = get_unique_list(req.get('Requests', []))
         req['Campaigns'] = get_unique_list(req.get('Campaigns', []))
+        service_type = get_service_type(req)
+        req['ServiceType'] = service_type
+        if service_type == 'relval_machine':
+            req['Campaigns'] = [{'name': x, 'links': [{'name': 'RelVal', 'link': 'https://cms-pdmv.cern.ch/relval/campaigns?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Campaigns']]
+            if len(req['Requests']) == 0:
+                req['Requests'] = [req['PrepID']]
+
+            req['Requests'] = [{'name': x, 'links': [{'name': 'RelVal', 'link': 'https://cms-pdmv.cern.ch/relval/relvals?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Requests']]
+
+        elif service_type == 'rereco_machine':
+            req['Campaigns'] = [{'name': x, 'links': [{'name': 'ReReco', 'link': 'https://cms-pdmv.cern.ch/rereco/subcampaigns?prepid=%s-*' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Campaigns']]
+            if len(req['Requests']) == 0:
+                req['Requests'] = [req['PrepID']]
+
+            req['Requests'] = [{'name': x, 'links': [{'name': 'ReReco', 'link': 'https://cms-pdmv.cern.ch/rereco/requests?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Requests']]
+
+        elif service_type == 'mc':
+            req['Campaigns'] = [{'name': x, 'links': [{'name': 'McM', 'link': 'https://cms-pdmv.cern.ch/mcm/campaigns?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Campaigns']]
+            req['Requests'] = [{'name': x, 'links': [{'name': 'McM', 'link': 'https://cms-pdmv.cern.ch/mcm/requests?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Requests']]
+
+        else:
+            req['Campaigns'] = [{'name': x, 'links': [{'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Campaigns']]
+            req['Requests'] = []
+
         calculated_datasets = []
         total_events = req.get('TotalEvents', 0)
         for dataset in req['OutputDatasets']:

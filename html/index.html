@@ -64,9 +64,10 @@
                   <ul>
                     {% for request in workflow.Requests %}
                       <li>
-                        <a href="0?request={{ request }}">{{ request }}</a>
-                        <small><a target="_blank" href="https://cms-pdmv.cern.ch/mcm/requests?prepid={{ request }}">McM</a></small>
-                        <small><a target="_blank" href="https://cms-pdmv.cern.ch/pmp/historical?r={{ request }}">pMp</a></small>
+                        <a href="0?request={{ request.name }}">{{ request.name }}</a>
+                        {% for link in request.links %}
+                          <small><a target="_blank" href="{{ link.link }}">{{link.name}}</a></small>
+                        {% endfor %}
                       </li>
                     {% endfor %}
                   </ul>
@@ -77,9 +78,10 @@
                   <ul>
                     {% for campaign in workflow.Campaigns %}
                       <li>
-                        <a href="0?campaign={{ campaign }}">{{ campaign }}</a>
-                        <small><a target="_blank" href="https://cms-pdmv.cern.ch/mcm/campaigns?prepid={{ campaign }}">McM</a></small>
-                        <small><a target="_blank" href="https://cms-pdmv.cern.ch/pmp/historical?r={{ campaign }}">pMp</a></small>
+                        <a href="0?campaign={{ campaign.name }}">{{ campaign.name }}</a>
+                        {% for link in campaign.links %}
+                          <small><a target="_blank" href="{{ link.link }}">{{link.name}}</a></small>
+                        {% endfor %}
                       </li>
                     {% endfor %}
                   </ul>
