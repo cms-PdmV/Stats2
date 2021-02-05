@@ -34,6 +34,24 @@ def html_view_json(workflow_name):
     return response
 
 
+@app.route('/api/fetch')
+def html_api_fetch():
+    """
+    Return workflows for a given q= query
+    """
+    database = Database()
+    page = 0
+    workflows = []
+    fetched = [{}]
+    while len(fetched) > 0 and page < 10:
+        workflows.extend(get_page(page))
+        page += 1
+
+    response = make_response(json.dumps(workflows, indent=2, sort_keys=True), 200)
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+
 def matches_regex(value, regex):
     """
     Check if given string fully matches given regex
