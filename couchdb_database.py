@@ -20,6 +20,7 @@ class Database:
         self.logger = logging.getLogger('logger')
         self.database_url = 'http://localhost:5984'
         self.workflows_table = self.database_url + '/requests'
+        self.workflows_input_dataset_view = self.workflows_table + '/_design/_designDoc/_view/inputDatasets'
         self.workflows_output_datasets_view = self.workflows_table + '/_design/_designDoc/_view/outputDatasets'
         self.workflows_campaigns_view = self.workflows_table + '/_design/_designDoc/_view/campaigns'
         self.workflows_prepid_view = self.workflows_table + '/_design/_designDoc/_view/prepids'
@@ -87,7 +88,23 @@ class Database:
 
         return [x['id'] for x in rows]
 
-    def get_workflows_with_dataset(self, dataset, page=0, page_size=PAGE_SIZE, include_docs=False):
+    def get_workflows_with_input_dataset(self, dataset, page=0, page_size=PAGE_SIZE, include_docs=False):
+        """
+        Fetch workflows that have certain input dataset
+        """
+        include_docs_str = 'True' if include_docs else 'False'
+        url = '%s?key="%s"&limit=%d&skip=%d&include_docs=%s' % (self.workflows_input_dataset_view,
+                                                                dataset,
+                                                                page_size,
+                                                                page * page_size,
+                                                                include_docs_str)
+        rows = self.make_request(url)['rows']
+        if include_docs:
+            return [x['doc'] for x in rows]
+
+        return [x['id'] for x in rows]
+
+    def get_workflows_with_output_dataset(self, dataset, page=0, page_size=PAGE_SIZE, include_docs=False):
         """
         Fetch workflows that have certain output dataset
         """

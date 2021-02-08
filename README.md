@@ -72,6 +72,15 @@ function (doc) {
   }
 }
 ```
+Input datasets (view name:`inputDatasets`):
+```
+function (doc) {
+  var i;
+  if (doc.InputDataset) {
+    emit(doc.InputDataset, doc.RequestName);
+  }
+}
+```
 Output datasets (view name:`outputDatasets`):
 ```
 function (doc) {

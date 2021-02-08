@@ -200,8 +200,11 @@ def html_search():
     if database.get_workflows_with_prepid(query, page_size=1):
         return redirect('/stats?prepid=' + query, code=302)
 
-    if database.get_workflows_with_dataset(query, page_size=1):
-        return redirect('/stats?dataset=' + query, code=302)
+    if database.get_workflows_with_output_dataset(query, page_size=1):
+        return redirect('/stats?output_dataset=' + query, code=302)
+
+    if database.get_workflows_with_input_dataset(query, page_size=1):
+        return redirect('/stats?input_dataset=' + query, code=302)
 
     if database.get_workflows_with_campaign(query, page_size=1):
         return redirect('/stats?campaign=' + query, code=302)
@@ -225,7 +228,8 @@ def get_page(page=0):
     """
     database = Database()
     prepid = request.args.get('prepid')
-    dataset = request.args.get('dataset')
+    output_dataset = request.args.get('output_dataset')
+    input_dataset = request.args.get('input_dataset')
     campaign = request.args.get('campaign')
     workflow_type = request.args.get('type')
     workflow_name = request.args.get('workflow_name')
@@ -246,10 +250,14 @@ def get_page(page=0):
             workflows = database.get_workflows_with_prepid(prepid,
                                                            page=page,
                                                            include_docs=True)
-        elif dataset is not None:
-            workflows = database.get_workflows_with_dataset(dataset,
-                                                            page=page,
-                                                            include_docs=True)
+        elif output_dataset is not None:
+            workflows = database.get_workflows_with_output_dataset(output_dataset,
+                                                                   page=page,
+                                                                   include_docs=True)
+        elif input_dataset is not None:
+            workflows = database.get_workflows_with_input_dataset(input_dataset,
+                                                                  page=page,
+                                                                  include_docs=True)
         elif campaign is not None:
             workflows = database.get_workflows_with_campaign(campaign,
                                                              page=page,
@@ -270,7 +278,7 @@ def get_page(page=0):
             workflows = database.get_workflows(page=page,
                                                include_docs=True)
 
-    if prepid is not None or dataset is not None or request_name is not None:
+    if prepid is not None or output_dataset is not None or input_dataset is not None or request_name is not None:
         workflows = sorted(workflows,
                            key=lambda wf: '_'.join(wf.get('RequestName').split('_')[-3:-1]))
 

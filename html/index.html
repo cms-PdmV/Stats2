@@ -20,7 +20,7 @@
         <form class="form-inline" action="search">
           <div class="form-group">
             <label><small>Search:</small></label>
-            <input style="margin-left: 6px; margin-right: 6px; width:500px;" type="text" name="q" id="q" placeholder="Workflow, PrepID, Output Dataset, etc.">
+            <input style="margin-left: 6px; margin-right: 6px; width:525px;" type="text" name="q" id="q" placeholder="Workflow, PrepID, Input or Output Dataset, etc.">
           </div>
           <button type="submit" class="btn btn-outline-primary" style="padding: 2px 12px" value="Search">Search</button>
         </form>
@@ -50,6 +50,9 @@
               {% endif %}
               {% if workflow.ProcessingString | length > 0 %}
                   <small>Processing string:</small> <a href="0?processing_string={{ workflow.ProcessingString }}">{{ workflow.ProcessingString }}</a><br>
+              {% endif %}
+              {% if workflow.InputDataset %}
+                  <small>Input dataset:</small> <a href="0?input_dataset={{ workflow.InputDataset }}">{{ workflow.InputDataset }}</a> <a target="_blank" href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ workflow.InputDataset }}"><small>go to</small> DAS</a><br>
               {% endif %}
               <small><a target="_blank" href="https://cmsweb.cern.ch/reqmgr2/fetch?rid={{ workflow.RequestName }}">ReqMgr2</a></small><br>
               {% if workflow.PrepID | length > 0 %}
@@ -116,7 +119,7 @@
                       <a target="_blank" href="https://cmsweb.cern.ch/reqmgr2/data/request?detail=true&inputdataset={{dataset.Name}}"><small>go to</small> harvesting job</a>
                     {% endif %}
                     <br>
-                    <small><a href="0?dataset={{ dataset.Name }}">{{ dataset.Name }}</a></small>
+                    <small><a href="0?output_dataset={{ dataset.Name }}">{{ dataset.Name }}</a></small>
                 </li>
               {% endfor %}
             </ul>

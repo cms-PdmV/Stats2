@@ -610,7 +610,7 @@ class StatsUpdate():
         updated_datasets = self.get_updated_dataset_list_from_dbs(since_timestamp=last_dataset_modification_date)
         self.logger.info('Will find if any of changed datasets belong to workflows in database')
         for dataset in updated_datasets:
-            dataset_workflows = self.database.get_workflows_with_dataset(dataset, page_size=1000)
+            dataset_workflows = self.database.get_workflows_with_output_dataset(dataset, page_size=1000)
             self.logger.info('%d workflows contain %s', len(dataset_workflows), dataset)
             workflows.update(dataset_workflows)
 
