@@ -189,7 +189,7 @@ def html_get(page=0):
         service_type, service_name = get_service_type_and_name(req)
         # Links to external pages - McM, ReReco, RelVal, pMp
         attribute = 'request'
-        if len(req['Requests']) == 0:
+        if len(req['Requests']) == 0 and req.get('PrepID'):
             attribute = 'prepid'
             req['Requests'] = [req['PrepID']]
 
