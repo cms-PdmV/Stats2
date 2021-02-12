@@ -39,7 +39,6 @@ def html_api_fetch():
     """
     Return workflows for a given q= query
     """
-    database = Database()
     page = 0
     workflows = []
     fetched = [{}]
@@ -64,27 +63,89 @@ def matches_regex(value, regex):
     return False
 
 
-def get_service_type(workflow):
+def get_service_type_and_name(workflow):
+    """
+    Return a tuple of service type and name for a given workflow
+    """
     prepid = workflow.get('PrepID')
     if not prepid:
-        return 'unknown'
+        return 'unknown', ''
 
     if matches_regex(prepid, '^ReReco-.*-[0-9]{5}$'):
-        return 'rereco_machine'
+        return 'rereco_machine', 'ReReco'
 
     if matches_regex(prepid, '^ReReco-.*$'):
-        return 'rereco'
+        return 'rereco', ''
 
     if matches_regex(prepid, '^CMSSW_.*-[0-9]{5}$'):
-        return 'relval_machine'
+        return 'relval_machine', 'RelVal'
 
     if matches_regex(prepid, '^CMSSW_.*'):
-        return 'relval'
+        return 'relval', ''
 
     if matches_regex(prepid, '^(task_)?[A-Z0-9]{3}-.*-[0-9]{5}$'):
-        return 'mc'
+        return 'mc', 'McM'
 
-    return 'unknown'
+    return 'unknown', ''
+
+
+def get_campaign_link(name, service):
+    """
+    Return a link to a campaign in a given service
+    """
+    if service == 'mc':
+        return 'https://cms-pdmv.cern.ch/mcm/campaigns?prepid=%s' % (name)
+    if service == 'rereco_machine':
+        return 'https://cms-pdmv.cern.ch/rereco/subcampaigns?prepid=%s' % (name)
+    if service == 'relval_machine':
+        cmssw_version = name.split('__')[0]
+        batch_name = name.split('__')[-1].split('-')[0]
+        campaign_timestamp = name.split('-')[-1]
+        return 'https://cms-pdmv.cern.ch/relval/relvals?cmssw_release=%s&batch_name=%s&campaign_timestamp=%s' % (cmssw_version, batch_name, campaign_timestamp)
+
+    return ''
+
+
+def get_request_link(name, service):
+    """
+    Return a link to a request in a given service
+    """
+    if service == 'mc':
+        return 'https://cms-pdmv.cern.ch/mcm/requests?prepid=%s' % (name)
+    if service == 'rereco_machine':
+        return 'https://cms-pdmv.cern.ch/rereco/requests?prepid=%s' % (name)
+    if service == 'relval_machine':
+        return 'https://cms-pdmv.cern.ch/relval/relvals?prepid=%s' % (name)
+
+    return ''
+
+
+def get_campaign_links(name, service_type, service_name):
+    """
+    Return all links to a campaign in a given service
+    """
+    links = []
+    if service_type in ('mc', 'relval_machine', 'rereco_machine'):
+        links.append({'name': service_name,
+                      'link': get_campaign_link(name, service_type)})
+
+    links.append({'name': 'pMp',
+                  'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (name)})
+    return links
+
+
+def get_request_links(name, service_type, service_name):
+    """
+    Return all links to a request in a given service
+    """
+    links = []
+    if service_type in ('mc', 'relval_machine', 'rereco_machine'):
+        links.append({'name': service_name,
+                      'link': get_request_link(name, service_type)})
+
+    links.append({'name': 'pMp',
+                  'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (name)})
+    return links
 
 
 # HTML responses
@@ -125,29 +186,20 @@ def html_get(page=0):
         req['LastUpdate'] = time.strftime(datetime_format, time.localtime(req['LastUpdate']))
         req['Requests'] = get_unique_list(req.get('Requests', []))
         req['Campaigns'] = get_unique_list(req.get('Campaigns', []))
-        service_type = get_service_type(req)
-        req['ServiceType'] = service_type
-        if service_type == 'relval_machine':
-            req['Campaigns'] = [{'name': x, 'links': [{'name': 'RelVal', 'link': 'https://cms-pdmv.cern.ch/relval/campaigns?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Campaigns']]
-            if len(req['Requests']) == 0:
-                req['Requests'] = [req['PrepID']]
+        service_type, service_name = get_service_type_and_name(req)
+        # Links to external pages - McM, ReReco, RelVal, pMp
+        attribute = 'request'
+        if len(req['Requests']) == 0:
+            attribute = 'prepid'
+            req['Requests'] = [req['PrepID']]
 
-            req['Requests'] = [{'name': x, 'links': [{'name': 'RelVal', 'link': 'https://cms-pdmv.cern.ch/relval/relvals?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Requests']]
-
-        elif service_type == 'rereco_machine':
-            req['Campaigns'] = [{'name': x, 'links': [{'name': 'ReReco', 'link': 'https://cms-pdmv.cern.ch/rereco/subcampaigns?prepid=%s-*' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Campaigns']]
-            if len(req['Requests']) == 0:
-                req['Requests'] = [req['PrepID']]
-
-            req['Requests'] = [{'name': x, 'links': [{'name': 'ReReco', 'link': 'https://cms-pdmv.cern.ch/rereco/requests?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Requests']]
-
-        elif service_type == 'mc':
-            req['Campaigns'] = [{'name': x, 'links': [{'name': 'McM', 'link': 'https://cms-pdmv.cern.ch/mcm/campaigns?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Campaigns']]
-            req['Requests'] = [{'name': x, 'links': [{'name': 'McM', 'link': 'https://cms-pdmv.cern.ch/mcm/requests?prepid=%s' % (x)}, {'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Requests']]
-
-        else:
-            req['Campaigns'] = [{'name': x, 'links': [{'name': 'pMp', 'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (x)}]} for x in req['Campaigns']]
-            req['Requests'] = []
+        req['Campaigns'] = [{'name': x,
+                             'links': get_campaign_links(x, service_type, service_name)}
+                            for x in req['Campaigns']]
+        req['Requests'] = [{'name': x,
+                            'attribute': attribute,
+                            'links': get_request_links(x, service_type, service_name)}
+                           for x in req['Requests']]
 
         calculated_datasets = []
         total_events = req.get('TotalEvents', 0)

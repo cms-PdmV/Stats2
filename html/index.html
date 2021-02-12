@@ -67,7 +67,7 @@
                   <ul>
                     {% for request in workflow.Requests %}
                       <li>
-                        <a href="0?request={{ request.name }}">{{ request.name }}</a>
+                        <a href="0?{{ request.attribute }}={{ request.name }}">{{ request.name }}</a>
                         {% for link in request.links %}
                           <small><a target="_blank" href="{{ link.link }}">{{link.name}}</a></small>
                         {% endfor %}
