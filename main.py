@@ -1,10 +1,12 @@
 """
 Module that starts webserver and has all it's endpoints
 """
+import os
 import json
 import time
 import argparse
 import re
+import logging
 from flask import Flask, render_template, request, make_response, redirect
 from flask_restful import Api
 from couchdb_database import Database
@@ -344,9 +346,12 @@ def run_flask():
     setup_console_logging()
     parser = argparse.ArgumentParser(description='Stats2')
     parser.add_argument('--port',
-                        help='Port, default is 8001')
+                        help='Port, default is 8001',
+                        type=int,
+                        default=8001)
     parser.add_argument('--host',
-                        help='Host IP, default is 127.0.0.1')
+                        help='Host IP, default is 127.0.0.1',
+                        default='127.0.0.1')
     parser.add_argument('--debug',
                         help='Run Flask in debug mode',
                         action='store_true')
@@ -354,11 +359,12 @@ def run_flask():
     port = args.get('port', None)
     host = args.get('host', None)
     debug = args.get('debug', False)
-    if not port:
-        port = 8001
-
-    if not host:
-        host = '127.0.0.1'
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        # Do only once, before the reloader
+        pid = os.getpid()
+        logging.info('PID: %s', pid)
+        with open('stats.pid', 'w') as pid_file:
+            pid_file.write(str(pid))
 
     app.run(host=host,
             port=port,
