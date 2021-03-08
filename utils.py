@@ -12,14 +12,27 @@ __CONNECTION_WRAPPERS = {}
 
 def make_cmsweb_request(query_url, data=None, timeout=90, keep_open=True):
     """
-    Make a request to cmsweb.cern.ch. Use connection wrapper to keep connection alive
+    Make a request to https://cmsweb.cern.ch
+    """
+    return make_request('https://cmsweb.cern.ch', query_url, data, timeout, keep_open)
+
+
+def make_cmsweb_prod_request(query_url, data=None, timeout=90, keep_open=True):
+    """
+    Make a request to https://cmsweb-prod.cern.ch
+    """
+    return make_request('https://cmsweb-prod.cern.ch', query_url, data, timeout, keep_open)
+
+
+def make_request(host, query_url, data=None, timeout=90, keep_open=True):
+    """
+    Make a HTTP request. Use connection wrapper to keep connection alive
     and add necessary grid certificates for authentication
     """
-    host_url = 'https://cmsweb.cern.ch'
-    connection_wrapper_key = f'{host_url}___{timeout}___{keep_open}'
+    connection_wrapper_key = f'{host}___{timeout}___{keep_open}'
     connection_wrapper = __CONNECTION_WRAPPERS.get(connection_wrapper_key)
     if connection_wrapper is None:
-        connection_wrapper = ConnectionWrapper(host_url, timeout, keep_open)
+        connection_wrapper = ConnectionWrapper(host, timeout, keep_open)
         __CONNECTION_WRAPPERS[connection_wrapper_key] = connection_wrapper
 
     method = 'GET' if data is None else 'POST'
@@ -29,10 +42,11 @@ def make_cmsweb_request(query_url, data=None, timeout=90, keep_open=True):
     request_finish_time = time.time()
     time_taken = request_finish_time - request_start_time
     if not data:
-        logger.info('%s request to %s took %.3fs', method, query_url, time_taken)
+        logger.info('%s request to %s%s took %.3fs', method, host, query_url, time_taken)
     else:
-        logger.info('%s request to %s with data \n%s\n took %.3fs',
+        logger.info('%s request to %s%s with data \n%s\n took %.3fs',
                     method,
+                    host,
                     query_url,
                     json.dumps(data, indent=2, sort_keys=True),
                     time_taken)

@@ -9,7 +9,7 @@ import traceback
 import os
 import subprocess
 from couchdb_database import Database
-from utils import make_cmsweb_request, pick_attributes, setup_console_logging
+from utils import make_cmsweb_request, make_cmsweb_prod_request, pick_attributes, setup_console_logging
 
 
 class StatsUpdate():
@@ -232,7 +232,7 @@ class StatsUpdate():
         if dataset_access_type in ('PRODUCTION', 'VALID'):
             query_url += '&validFileOnly=1'
 
-        filesummaries = make_cmsweb_request(query_url)
+        filesummaries = make_cmsweb_prod_request(query_url)
         if filesummaries:
             return filesummaries[0]
 
@@ -293,9 +293,9 @@ class StatsUpdate():
 
         if output_datasets_to_query:
             # Get datasets that were not in cache
-            dbs_dataset_list = make_cmsweb_request(dataset_list_url,
-                                                   {'dataset': output_datasets_to_query,
-                                                    'detail': 1})
+            dbs_dataset_list = make_cmsweb_prod_request(dataset_list_url,
+                                                        {'dataset': output_datasets_to_query,
+                                                         'detail': 1})
         else:
             self.logger.info('Not doing a request to %s because all datasets were in cache',
                              dataset_list_url)
@@ -590,7 +590,7 @@ class StatsUpdate():
         self.logger.info('Getting the list of modified datasets since %d from %s',
                          since_timestamp,
                          url)
-        dataset_list = make_cmsweb_request(url)
+        dataset_list = make_cmsweb_prod_request(url)
         if dataset_list is None:
             self.logger.error('Could not get list of modified datasets since %d from %s',
                               since_timestamp,
@@ -716,7 +716,7 @@ class StatsUpdate():
                         '-s',  # Silent
                         '-k',  # Ignore invalid https certificate
                         '-L',  # Follow 3xx codes
-                        '-m 60',  # Timeout 60s
+                        '-m 20',  # Timeout 20s
                         '-w %{http_code}',  # Return only HTTP code
                         '-o /dev/null']
                 if outside.get('cookie'):
