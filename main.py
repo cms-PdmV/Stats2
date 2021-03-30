@@ -10,7 +10,7 @@ import logging
 from flask import Flask, render_template, request, make_response, redirect
 from flask_restful import Api
 from couchdb_database import Database
-from utils import setup_console_logging, get_unique_list, get_nice_size
+from utils import setup_console_logging, get_unique_list, get_nice_size, comma_separate_thousands
 
 
 app = Flask(__name__,
@@ -204,6 +204,7 @@ def html_get(page=0):
                            for x in req['Requests']]
 
         calculated_datasets = []
+
         total_events = req.get('TotalEvents', 0)
         for dataset in req['OutputDatasets']:
             new_dataset = {'Name': dataset,
@@ -216,12 +217,12 @@ def html_get(page=0):
             for history_entry in reversed(req['EventNumberHistory']):
                 history_entry = history_entry['Datasets']
                 if dataset in history_entry:
-                    new_dataset['Events'] = history_entry[dataset]['Events']
+                    new_dataset['Events'] = comma_separate_thousands(history_entry[dataset]['Events'])
                     new_dataset['Type'] = history_entry[dataset]['Type']
                     new_dataset['Size'] = history_entry[dataset].get('Size', -1)
                     new_dataset['NiceSize'] = get_nice_size(new_dataset['Size'])
                     if total_events > 0:
-                        percentage = new_dataset['Events'] / total_events * 100.0
+                        percentage = history_entry[dataset]['Events'] / total_events * 100.0
                         new_dataset['CompletedPerc'] = '%.2f' % (percentage)
 
                     break
@@ -229,6 +230,12 @@ def html_get(page=0):
             calculated_datasets.append(new_dataset)
 
         req['OutputDatasets'] = calculated_datasets
+        if 'TotalEvents' in req:
+            req['TotalEvents'] = comma_separate_thousands(int(req['TotalEvents']))
+
+        if 'RequestPriority' in req:
+            req['RequestPriority'] = comma_separate_thousands(int(req['RequestPriority']))
+
 
     last_stats_update = database.get_setting('last_dbs_update_date', 0)
     last_stats_update = time.strftime(datetime_format, time.localtime(last_stats_update))

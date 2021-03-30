@@ -105,3 +105,6 @@ def get_nice_size(size, base=1000.0):
         return '%.2fGB' % (size / base**3)
 
     return '%.2fTB' % (size / base**4)
+
+def comma_separate_thousands(number):
+    return '{:,}'.format(int(number))
