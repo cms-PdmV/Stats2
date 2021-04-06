@@ -80,9 +80,13 @@ class StatsUpdate():
         update_end = time.time()
         self.logger.info('Finished updating workflows')
         self.logger.info('Will update event count')
+        related_workflows = self.get_workflows_with_same_output(changed_workflows)
+        self.logger.info('There are %s related workflows to %s changed workflows',
+                         len(related_workflows),
+                         len(changed_workflows))
         changed_datasets = self.get_list_of_workflows_with_changed_datasets()
         workflows_to_recalculate = set(changed_workflows).union(set(changed_datasets))
-
+        workflows_to_recalculate.update(related_workflows)
         self.logger.info('Will update event count for %d workflows', len(workflows_to_recalculate))
         for index, workflow_name in enumerate(workflows_to_recalculate):
             try:
@@ -237,6 +241,22 @@ class StatsUpdate():
             return filesummaries[0]
 
         return {}
+
+    def get_workflows_with_same_output(self, workflow_names):
+        """
+        Get list of workflow names that have the same output datasets as given workflows
+        """
+        datasets = set()
+        for workflow_name in workflow_names:
+            workflow = self.database.get_workflow(workflow_name)
+            datasets.update(workflow.get('OutputDatasets', []))
+
+        same_output_workflows = set()
+        for dataset in datasets:
+            dataset_workflows = self.database.get_workflows_with_output_dataset(dataset, page_size=1000)
+            same_output_workflows.update(dataset_workflows)
+
+        return same_output_workflows
 
     def get_event_count_from_dbs(self, dataset_name, dataset_access_type=None):
         """
@@ -606,7 +626,7 @@ class StatsUpdate():
         """
         self.logger.info('Will get list of changed datasets')
         workflows = set()
-        last_dataset_modification_date = self.database.get_setting('last_dbs_update_date', 0)
+        last_dataset_modification_date = max(0, self.database.get_setting('last_dbs_update_date', 0) - 300) # 300s margin
         updated_datasets = self.get_updated_dataset_list_from_dbs(since_timestamp=last_dataset_modification_date)
         self.logger.info('Will find if any of changed datasets belong to workflows in database')
         for dataset in updated_datasets:
