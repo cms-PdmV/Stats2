@@ -213,7 +213,7 @@ def html_get(page=0):
                                             time.localtime(last_transition['UpdateTime']))
                 req['LastStatus'] = status
                 req['LastStatusTime'] = update_time
-                req['LastStatusAgo'] = get_time_diff(first_transition['UpdateTime'], now)
+                req['LastStatusAgo'] = get_time_diff(last_transition['UpdateTime'], now)
 
         req['LastUpdateAgo'] = get_time_diff(req['LastUpdate'], now)
         req['LastUpdate'] = time.strftime(datetime_format, time.localtime(req['LastUpdate']))
