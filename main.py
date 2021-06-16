@@ -150,6 +150,29 @@ def get_request_links(name, service_type, service_name):
     return links
 
 
+def get_time_diff(t1, t2):
+    """
+    Translate difference in seconds to days or hours or minutes or seconds
+    """
+    seconds = t2 - t1
+    days = int(seconds / 86400)
+    if days:
+        return '%sd' % (days)
+
+    seconds -= days * 86400
+    hours = int(seconds / 3600)
+    seconds -= hours * 3600
+    minutes = int(seconds / 60)
+    if hours:
+        return '%sh %smin' % (hours, minutes)
+
+    if minutes:
+        return '%smin' % (minutes)
+
+    seconds -= minutes * 60
+    return '%ss' % (seconds)
+
+
 # HTML responses
 @app.route('/')
 @app.route('/<int:page>')
@@ -164,6 +187,7 @@ def html_get(page=0):
     pages = [page, page > 0, database.PAGE_SIZE == len(workflows)]
     workflows = list(filter(lambda req: '_design' not in req['_id'], workflows))
     datetime_format = '%Y&#8209;%m&#8209;%d&nbsp;%H:%M:%S'
+    now = int(time.time())
     for req in workflows:
         if '_design' in req['_id']:
             continue
@@ -177,14 +201,19 @@ def html_get(page=0):
                 status = first_transition['Status']
                 update_time = time.strftime(datetime_format,
                                             time.localtime(first_transition['UpdateTime']))
-                req['FirstStatus'] = f'{status} ({update_time})'
+                req['FirstStatus'] = status
+                req['FirstStatusTime'] = update_time
+                req['FirstStatusAgo'] = get_time_diff(first_transition['UpdateTime'], now)
 
             if 'Status' in last_transition and 'UpdateTime' in last_transition:
                 status = last_transition['Status']
                 update_time = time.strftime(datetime_format,
                                             time.localtime(last_transition['UpdateTime']))
-                req['LastStatus'] = f'{status} ({update_time})'
+                req['LastStatus'] = status
+                req['LastStatusTime'] = update_time
+                req['LastStatusAgo'] = get_time_diff(first_transition['UpdateTime'], now)
 
+        req['LastUpdateAgo'] = get_time_diff(req['LastUpdate'], now)
         req['LastUpdate'] = time.strftime(datetime_format, time.localtime(req['LastUpdate']))
         req['Requests'] = get_unique_list(req.get('Requests', []))
         req['Campaigns'] = get_unique_list(req.get('Campaigns', []))

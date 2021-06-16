@@ -41,12 +41,12 @@
               <small>Type:</small> <a href="0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a><br>
               <small>Total events:</small> {{ workflow.TotalEvents }}<br>
               <small>Priority:</small> {{ workflow.RequestPriority }}<br>
-              <small>Last update:</small> {{ workflow.LastUpdate | safe }}<br>
+              <small>Last update:</small> {{ workflow.LastUpdateAgo }} ago <small>({{ workflow.LastUpdate | safe }})</small><br>
               {% if workflow.FirstStatus | length > 0 %}
-                <small>First status:</small> {{ workflow.FirstStatus | safe }}<br>
+                <small>First status:</small> {{ workflow.FirstStatus }} <small>was set</small> {{workflow.FirstStatusAgo}} ago <small>({{ workflow.FirstStatusTime | safe }})</small><br>
               {% endif %}
               {% if workflow.LastStatus | length > 0 %}
-                <small>Last status:</small> {{ workflow.LastStatus | safe }}<br>
+                <small>Last status:</small> {{ workflow.LastStatus }} <small>was set</small> {{workflow.LastStatusAgo}} ago <small>({{ workflow.LastStatusTime | safe }})</small><br>
               {% endif %}
               {% if workflow.ProcessingString | length > 0 %}
                   <small>Processing string:</small> <a href="0?processing_string={{ workflow.ProcessingString }}">{{ workflow.ProcessingString }}</a><br>
