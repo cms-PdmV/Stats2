@@ -197,6 +197,9 @@ class StatsUpdate():
                       'RequestType',
                       'SizePerEvent',
                       'TimePerEvent']
+        if 'Task1' in wf_dict and 'InputDataset' in wf_dict['Task1']:
+            wf_dict['InputDataset'] = wf_dict['Task1']['InputDataset']
+
         wf_dict = pick_attributes(wf_dict, attributes)
         wf_dict['RequestTransition'] = [{'Status': tr['Status'],
                                          'UpdateTime': tr['UpdateTime']} for tr in wf_dict.get('RequestTransition', [])]
