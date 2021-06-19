@@ -199,6 +199,13 @@ class StatsUpdate():
                       'TimePerEvent']
         if 'Task1' in wf_dict and 'InputDataset' in wf_dict['Task1']:
             wf_dict['InputDataset'] = wf_dict['Task1']['InputDataset']
+        elif 'Step1' in wf_dict and 'InputDataset' in wf_dict['Step1']:
+            wf_dict['InputDataset'] = wf_dict['Step1']['InputDataset']
+
+        if 'Task1' in wf_dict and 'ProcessingString' in wf_dict['Task1']:
+            wf_dict['ProcessingString'] = wf_dict['Task1']['ProcessingString']
+        elif 'Step1' in wf_dict and 'ProcessingString' in wf_dict['Step1']:
+            wf_dict['ProcessingString'] = wf_dict['Step1']['ProcessingString']
 
         wf_dict = pick_attributes(wf_dict, attributes)
         wf_dict['RequestTransition'] = [{'Status': tr['Status'],
