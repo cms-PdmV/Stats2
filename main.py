@@ -11,6 +11,7 @@ from flask import Flask, render_template, request, make_response, redirect
 from flask_restful import Api
 from couchdb_database import Database
 from utils import setup_console_logging, get_unique_list, get_nice_size, comma_separate_thousands
+from stats_update import StatsUpdate
 
 
 app = Flask(__name__,
@@ -311,6 +312,20 @@ def html_search():
         return redirect('/stats?request=' + query, code=302)
 
     return redirect('/stats?workflow_name=' + query, code=302)
+
+
+@app.route('/update')
+def html_update():
+    """
+    Update one workflow
+    """
+    wf_name = request.args.get('workflow_name', '').strip()
+    if not wf_name:
+        return redirect('/stats', code=302)
+
+    stats_update = StatsUpdate()
+    stats_update.update_one(wf_name)
+    return redirect('/stats?workflow_name=' + wf_name, code=302)
 
 
 # Actual get method
