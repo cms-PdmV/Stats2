@@ -97,29 +97,19 @@
               {% for dataset in workflow.OutputDatasets %}
                 <li>
                   <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" class="gray-bar">
-                    {% if dataset.Type == 'VALID' %}
-                      <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar valid-bar"></div>
-                    {% elif dataset.Type == 'PRODUCTION' %}
-                      <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar production-bar"></div>
-                    {% elif dataset.Type == 'INVALID' %}
-                      <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar invalid-bar"></div>
-                    {% elif dataset.Type == 'DELETED' %}
-                      <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar deleted-bar"></div>
-                    {% else %}
-                      <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar"></div>
-                    {% endif %}
+                    <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar {{dataset.Type | lower}}-bar"></div>
                   </div>
-                    <small>datatier:</small> {{dataset.Datatier}},
-                    <small>completed:</small> {{dataset.CompletedPerc}}%,
-                    <small>events:</small> {{dataset.Events}},
-                    {% if dataset.Size > 0 %}<small>size:</small> <span title="{{dataset.Size}} bytes">{{dataset.NiceSize}}</span>,{% endif %}
-                    <small>type:</small> {{dataset.Type}},
-                    <a target="_blank" href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a>
-                    {% if dataset.Datatier == 'DQMIO' %}
-                      <a target="_blank" href="https://cmsweb.cern.ch/reqmgr2/data/request?detail=true&inputdataset={{dataset.Name}}"><small>go to</small> harvesting job</a>
-                    {% endif %}
-                    <br>
-                    <small><a href="0?output_dataset={{ dataset.Name }}">{{ dataset.Name }}</a></small>
+                  <small>datatier:</small> {{dataset.Datatier}},
+                  <small>completed:</small> {{dataset.CompletedPerc}}%,
+                  <small>events:</small> {{dataset.Events}},
+                  {% if dataset.Size > 0 %}<small>size:</small> <span title="{{dataset.Size}} bytes">{{dataset.NiceSize}}</span>,{% endif %}
+                  <small>type:</small> <b class="{{dataset.Type | lower}}-type">{{dataset.Type}}</b>,
+                  <a target="_blank" href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a>
+                  {% if dataset.Datatier == 'DQMIO' %}
+                    <a target="_blank" href="https://cmsweb.cern.ch/reqmgr2/data/request?detail=true&inputdataset={{dataset.Name}}"><small>go to</small> harvesting job</a>
+                  {% endif %}
+                  <br>
+                  <small><a href="0?output_dataset={{ dataset.Name }}">{{ dataset.Name }}</a></small>
                 </li>
               {% endfor %}
             </ul>
