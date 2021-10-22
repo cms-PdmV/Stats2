@@ -28,12 +28,24 @@ td, th {
 
 .gray-bar {
   width: 100px;
-  background-color:#bdc3c7;
+  background-color: #BDC3C7;
   display: inline-block;
   line-height:10px;
   height: 10px;
   font-size: 0;
   overflow: hidden;
+}
+
+.valid-type {
+  color: green;
+}
+
+.production-type, .invalid-type, .deleted-type, .deprecated-type {
+  color: red;
+}
+
+.none-type {
+  color: #8A8A8A;
 }
 
 .title {
