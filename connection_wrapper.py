@@ -57,7 +57,8 @@ class ConnectionWrapper():
         for _ in range(self.connection_attempts):
             try:
                 data = json.dumps(data) if data else None
-                self.connection.request(method, url, data, headers={'Accept': 'application/json'})
+                self.connection.request(method, url, data, headers={'Accept': 'application/json',
+                                                                    'Content-type': 'application/json'})
                 response = self.connection.getresponse()
                 if response.status != 200:
                     logger = logging.getLogger('logger')
