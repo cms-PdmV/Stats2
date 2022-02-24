@@ -21,7 +21,7 @@ def make_cmsweb_prod_request(query_url, data=None, timeout=90, keep_open=True):
     """
     Make a request to https://cmsweb-prod.cern.ch
     """
-    return make_request('https://cmsweb-prod.cern.ch', query_url, data, timeout, keep_open)
+    return make_request('https://cmsweb-prod.cern.ch:8443', query_url, data, timeout, keep_open)
 
 
 def make_request(host, query_url, data=None, timeout=90, keep_open=True):
@@ -32,13 +32,18 @@ def make_request(host, query_url, data=None, timeout=90, keep_open=True):
     connection_wrapper_key = f'{host}___{timeout}___{keep_open}'
     connection_wrapper = __CONNECTION_WRAPPERS.get(connection_wrapper_key)
     if connection_wrapper is None:
-        connection_wrapper = ConnectionWrapper(host, timeout, keep_open)
+        connection_wrapper = ConnectionWrapper(host, keep_open=keep_open)
+        connection_wrapper.timeout = timeout
         __CONNECTION_WRAPPERS[connection_wrapper_key] = connection_wrapper
 
     method = 'GET' if data is None else 'POST'
     logger = logging.getLogger('logger')
     request_start_time = time.time()
-    response = connection_wrapper.api(method, query_url, data)
+    response = connection_wrapper.api(method=method,
+                                      url=query_url,
+                                      data=data,
+                                      headers={'Accept': 'application/json',
+                                               'Content-type': 'application/json'})
     request_finish_time = time.time()
     time_taken = request_finish_time - request_start_time
     if not data:

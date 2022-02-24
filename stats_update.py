@@ -325,7 +325,8 @@ class StatsUpdate():
             # Get datasets that were not in cache
             dbs_dataset_list = make_cmsweb_prod_request(dataset_list_url,
                                                         {'dataset': output_datasets_to_query,
-                                                         'detail': 1})
+                                                         'detail': 1,
+                                                         'dataset_access_type': '*'})
         else:
             self.logger.info('Not doing a request to %s because all datasets were in cache',
                              dataset_list_url)
