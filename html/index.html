@@ -58,6 +58,9 @@
               {% if workflow.PrepID | length > 0 %}
                 <small><a target="_blank" href="https://cms-unified.web.cern.ch/cms-unified/showlog/?search={{ workflow.PrepID }}">CMSUnified</a></small><br>
               {% endif %}
+              {% if workflow.PrepID | length > 0 %}
+                <small><a target="_blank" href="https://dmytro.web.cern.ch/dmytro/cmsprodmon/workflows.php?prep_id={{ workflow.PrepID }}">Dmytro Report</a></small><br>
+              {% endif %}
               <small><a href="get_json/{{ workflow._id }}">View&nbsp;JSON</a></small><br>
           </td>
           <td>
