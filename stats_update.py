@@ -103,7 +103,7 @@ class StatsUpdate():
                                   traceback.format_exc())
 
         recalculation_end = time.time()
-        self.database.set_setting('last_reqmgr_sequence', int(last_seq))
+        self.database.set_setting('last_reqmgr_sequence', last_seq)
         self.database.set_setting('last_dbs_update_date', int(update_start))
         self.logger.info('Updated and deleted %d/%d workflows in %.3fs',
                          len(changed_workflows), len(deleted_workflows),
@@ -600,7 +600,7 @@ class StatsUpdate():
         url = f'/couchdb/reqmgr_workload_cache/_changes?since={last_seq}'
         self.logger.info('Getting the list of all workflows since %d from %s', last_seq, url)
         response = make_cmsweb_request(url)
-        last_seq = int(response['last_seq'])
+        last_seq = response['last_seq']
         wf_list = response['results']
         changed_wf_list = list(filter(lambda x: not x.get('deleted', False), wf_list))
         changed_wf_list = [wf['id'] for wf in changed_wf_list]
