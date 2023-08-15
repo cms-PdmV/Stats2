@@ -709,32 +709,32 @@ class StatsUpdate():
         self.logger.info('Trigger outside for %s (%s)', workflow_name, workflow_type)
         if trigger_prod:
             if workflow_type.lower() == 'rereco' or workflow.get('PrepID', '').startswith('ReReco-'):
-                outside_urls.append({'url': 'https://cms-pdmv.cern.ch/rereco/api/requests/update_workflows',
+                outside_urls.append({'url': 'https://cms-pdmv-prod.web.cern.ch/rereco/api/requests/update_workflows',
                                      'cookie': 'prod_cookie.txt',
                                      'data': {'prepid': workflow.get('PrepID', '')},
                                      'method': 'POST'})
             elif 'RVCMSSW' in workflow_name:
-                outside_urls.append({'url': 'https://cms-pdmv.cern.ch/relval/api/relvals/update_workflows',
+                outside_urls.append({'url': 'https://cms-pdmv-prod.web.cern.ch/relval/api/relvals/update_workflows',
                                      'cookie': 'prod_cookie.txt',
                                      'data': {'prepid': workflow.get('PrepID', '')},
                                      'method': 'POST'})
             else:
-                outside_urls.append({'url': f'https://cms-pdmv.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
+                outside_urls.append({'url': f'https://cms-pdmv-prod.web.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
                                      'cookie': 'prod_cookie.txt'})
 
         if trigger_dev:
             if workflow_type.lower() == 'rereco' or workflow.get('PrepID', '').startswith('ReReco-'):
-                outside_urls.append({'url': 'https://cms-pdmv-dev.cern.ch/rereco/api/requests/update_workflows',
+                outside_urls.append({'url': 'https://cms-pdmv-dev.web.cern.ch/rereco/api/requests/update_workflows',
                                      'cookie': 'dev_cookie.txt',
                                      'data': {'prepid': workflow.get('PrepID', '')},
                                      'method': 'POST'})
             elif 'RVCMSSW' in workflow_name:
-                outside_urls.append({'url': 'https://cms-pdmv-dev.cern.ch/relval/api/relvals/update_workflows',
+                outside_urls.append({'url': 'https://cms-pdmv-dev.web.cern.ch/relval/api/relvals/update_workflows',
                                      'cookie': 'dev_cookie.txt',
                                      'data': {'prepid': workflow.get('PrepID', '')},
                                      'method': 'POST'})
             else:
-                outside_urls.append({'url': f'https://cms-pdmv-dev.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
+                outside_urls.append({'url': f'https://cms-pdmv-dev.web.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
                                      'cookie': 'dev_cookie.txt'})
 
         for outside in outside_urls:
@@ -751,6 +751,7 @@ class StatsUpdate():
                         '-w %{http_code}',  # Return only HTTP code
                         '-o /dev/null']
                 if outside.get('cookie'):
+                    # Cookie must be reachable from Stats2 home folder
                     self.logger.info('Append cookie "%s" while making request for %s',
                                      outside['cookie'],
                                      workflow_name)
