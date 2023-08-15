@@ -19,6 +19,8 @@ app = Flask(__name__,
             template_folder='./html')
 api = Api(app)
 
+# Set up logging
+setup_console_logging()
 
 @app.route('/get_json/<string:workflow_name>')
 @app.route('/api/get_json/<string:workflow_name>')
@@ -396,7 +398,6 @@ def run_flask():
     """
     Parse command line arguments and start flask web server
     """
-    setup_console_logging()
     parser = argparse.ArgumentParser(description='Stats2')
     parser.add_argument('--port',
                         help='Port, default is 8001',
