@@ -101,14 +101,14 @@ def get_campaign_link(name, service):
     Return a link to a campaign in a given service
     """
     if service == 'mc':
-        return 'https://cms-pdmv.cern.ch/mcm/campaigns?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/mcm/campaigns?prepid=%s' % (name)
     if service == 'rereco_machine':
-        return 'https://cms-pdmv.cern.ch/rereco/subcampaigns?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/rereco/subcampaigns?prepid=%s' % (name)
     if service == 'relval_machine':
         cmssw_version = name.split('__')[0]
         batch_name = name.split('__')[-1].split('-')[0]
         campaign_timestamp = name.split('-')[-1]
-        return 'https://cms-pdmv.cern.ch/relval/relvals?cmssw_release=%s&batch_name=%s&campaign_timestamp=%s' % (cmssw_version, batch_name, campaign_timestamp)
+        return 'https://cms-pdmv-prod.web.cern.ch/relval/relvals?cmssw_release=%s&batch_name=%s&campaign_timestamp=%s' % (cmssw_version, batch_name, campaign_timestamp)
 
     return ''
 
@@ -118,11 +118,11 @@ def get_request_link(name, service):
     Return a link to a request in a given service
     """
     if service == 'mc':
-        return 'https://cms-pdmv.cern.ch/mcm/requests?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/mcm/requests?prepid=%s' % (name)
     if service == 'rereco_machine':
-        return 'https://cms-pdmv.cern.ch/rereco/requests?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/rereco/requests?prepid=%s' % (name)
     if service == 'relval_machine':
-        return 'https://cms-pdmv.cern.ch/relval/relvals?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/relval/relvals?prepid=%s' % (name)
 
     return ''
 
@@ -137,7 +137,7 @@ def get_campaign_links(name, service_type, service_name):
                       'link': get_campaign_link(name, service_type)})
 
     links.append({'name': 'pMp',
-                  'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (name)})
+                  'link': 'https://cms-pdmv-prod.web.cern.ch/pmp/historical?r=%s' % (name)})
     return links
 
 
@@ -151,7 +151,7 @@ def get_request_links(name, service_type, service_name):
                       'link': get_request_link(name, service_type)})
 
     links.append({'name': 'pMp',
-                  'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (name)})
+                  'link': 'https://cms-pdmv-prod.web.cern.ch/pmp/historical?r=%s' % (name)})
     return links
 
 
