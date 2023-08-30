@@ -9,7 +9,15 @@ import traceback
 import os
 import subprocess
 from couchdb_database import Database
-from utils import make_cmsweb_request, make_cmsweb_prod_request, pick_attributes, setup_console_logging
+from utils import (
+    make_cmsweb_request, 
+    make_cmsweb_prod_request, 
+    pick_attributes, 
+    setup_console_logging, 
+    make_request,
+    get_client_credentials,
+    get_access_token,
+)
 
 
 class StatsUpdate():
@@ -709,71 +717,50 @@ class StatsUpdate():
         self.logger.info('Trigger outside for %s (%s)', workflow_name, workflow_type)
         if trigger_prod:
             if workflow_type.lower() == 'rereco' or workflow.get('PrepID', '').startswith('ReReco-'):
-                outside_urls.append({'url': 'https://cms-pdmv-prod.web.cern.ch/rereco/api/requests/update_workflows',
-                                     'cookie': 'prod_cookie.txt',
-                                     'data': {'prepid': workflow.get('PrepID', '')},
-                                     'method': 'POST'})
+                outside_urls.append({'host': 'https://cms-pdmv-prod.web.cern.ch',
+                                     'endpoint': '/rereco/api/requests/update_workflows',
+                                     'data': {'prepid': workflow.get('PrepID', '')}})
             elif 'RVCMSSW' in workflow_name:
-                outside_urls.append({'url': 'https://cms-pdmv-prod.web.cern.ch/relval/api/relvals/update_workflows',
-                                     'cookie': 'prod_cookie.txt',
-                                     'data': {'prepid': workflow.get('PrepID', '')},
-                                     'method': 'POST'})
+                outside_urls.append({'host': 'https://cms-pdmv-prod.web.cern.ch',
+                                     'endpoint': '/relval/api/relvals/update_workflows',
+                                     'data': {'prepid': workflow.get('PrepID', '')}})
             else:
-                outside_urls.append({'url': f'https://cms-pdmv-prod.web.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
-                                     'cookie': 'prod_cookie.txt'})
+                outside_urls.append({'host': 'https://cms-pdmv-prod.web.cern.ch',
+                                     'endpoint': f'/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}'})
 
         if trigger_dev:
             if workflow_type.lower() == 'rereco' or workflow.get('PrepID', '').startswith('ReReco-'):
-                outside_urls.append({'url': 'https://cms-pdmv-dev.web.cern.ch/rereco/api/requests/update_workflows',
-                                     'cookie': 'dev_cookie.txt',
+                outside_urls.append({'host': 'https://cms-pdmv-dev.web.cern.ch',
+                                     'endpoint': '/rereco/api/requests/update_workflows',
                                      'data': {'prepid': workflow.get('PrepID', '')},
-                                     'method': 'POST'})
+                                     'production': False})
             elif 'RVCMSSW' in workflow_name:
-                outside_urls.append({'url': 'https://cms-pdmv-dev.web.cern.ch/relval/api/relvals/update_workflows',
-                                     'cookie': 'dev_cookie.txt',
+                outside_urls.append({'host': 'https://cms-pdmv-dev.web.cern.ch',
+                                     'endpoint': '/relval/api/relvals/update_workflows',
                                      'data': {'prepid': workflow.get('PrepID', '')},
-                                     'method': 'POST'})
+                                     'production': False})
             else:
-                outside_urls.append({'url': f'https://cms-pdmv-dev.web.cern.ch/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
-                                     'cookie': 'dev_cookie.txt'})
-
+                outside_urls.append({'host': 'https://cms-pdmv-dev.web.cern.ch',
+                                     'endpoint': f'/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
+                                     'production': False})
+        
+        credentials: dict[str, str] = get_client_credentials()
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
         for outside in outside_urls:
-            try:
-                self.logger.info('Triggering outside for %s', workflow_name)
-                args = ['curl',
-                        '-X',
-                        outside.get('method', 'GET'),
-                        outside['url'],
-                        '-s',  # Silent
-                        '-k',  # Ignore invalid https certificate
-                        '-L',  # Follow 3xx codes
-                        '-m 20',  # Timeout 20s
-                        '-w %{http_code}',  # Return only HTTP code
-                        '-o /dev/null']
-                if outside.get('cookie'):
-                    # Cookie must be reachable from Stats2 home folder
-                    self.logger.info('Append cookie "%s" while making request for %s',
-                                     outside['cookie'],
-                                     workflow_name)
-                    args += ['--cookie', outside['cookie']]
-
-                if outside.get('data'):
-                    self.logger.info('Adding data "%s" while making request for %s',
-                                     outside['data'],
-                                     workflow_name)
-                    args += ['-d', '\'%s\'' % (json.dumps(outside['data']))]
-                    args += ['-H', '"Content-Type: application/json"']
-
-                args = ' '.join(args)
-                proc = subprocess.Popen(args, stdout=subprocess.PIPE, shell=True)
-                code = proc.communicate()[0]
-                code = int(code)
-                self.logger.info('HTTP code %s for %s', code, workflow_name)
-            except Exception as ex:
-                self.logger.error('Exception while trigerring %s for %s. Exception: %s',
-                                  outside['url'],
-                                  workflow_name,
-                                  str(ex))
+            self.logger.info('Triggering outside for %s', workflow_name)
+            production = outside.get('production', True)
+            auth_token_header = get_access_token(credentials=credentials, production=production)
+            headers = {**headers, "Authorization": auth_token_header}
+            make_request(
+                host=outside["host"], 
+                query_url=outside["endpoint"], 
+                data=outside.get("data"), 
+                timeout=20, 
+                headers=headers
+            )
 
 
 def main():
