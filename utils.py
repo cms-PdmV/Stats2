@@ -12,7 +12,6 @@ from connection_wrapper import ConnectionWrapper
 
 __CONNECTION_WRAPPERS = {}
 __ACCESS_TOKENS: dict[str, tuple[datetime.timedelta, datetime.datetime, str]] = {}
-__PDMV_API_ACCESS_CREDENTIALS: dict[str, str] | None = None
 
 
 def make_cmsweb_request(query_url, data=None, timeout=90, keep_open=True):
@@ -29,13 +28,6 @@ def make_cmsweb_prod_request(query_url, data=None, timeout=90, keep_open=True):
     return make_request(
         "https://cmsweb-prod.cern.ch:8443", query_url, data, timeout, keep_open
     )
-
-
-def make_cmsweb_request(query_url, data=None, timeout=90, keep_open=True):
-    """
-    Make a request to https://cmsweb.cern.ch
-    """
-    return make_request("https://cmsweb.cern.ch", query_url, data, timeout, keep_open)
 
 
 def make_request(
@@ -126,9 +118,7 @@ def get_client_credentials() -> dict[str, str]:
     raise RuntimeError(msg)
 
 
-def __fetch_access_token(
-    credentials: dict[str, str], audience: str
-) -> dict[str, str | int]:
+def __fetch_access_token(credentials: dict[str, str], audience: str) -> dict[str, str]:
     """
     Request an access token to Keycloak (CERN SSO) via a
     client credential grant.
@@ -155,25 +145,24 @@ def __fetch_access_token(
         "client_secret": client_secret,
         "audience": audience,
     }
-    url_encoded_data: str = urllib.parse.urlencode(query=url_encoded_data)
+    url_encoded_data_str: str = urllib.parse.urlencode(query=url_encoded_data)
     headers: dict[str, str] = {
         "Content-type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
     }
-    response: dict[str, str] = make_request(
+    response = make_request(
         host=cern_api_access_host,
         query_url=cern_api_access_endpoint,
-        data=url_encoded_data,
+        data=url_encoded_data_str,
         headers=headers,
     )
-    token_response: dict[str, str] = response
-    token: str = token_response.get("access_token", "")
+    token: str = response.get("access_token", "")
     if not token:
-        token_error = "Invalid access token request. Details: %s" % token_response
+        token_error = "Invalid access token request. Details: %s" % response
         logging.error(token_error)
         raise RuntimeError(token_error)
 
-    return token_response
+    return response
 
 
 def get_access_token(credentials: dict[str, str], production: bool = True) -> str:
@@ -211,13 +200,13 @@ def get_access_token(credentials: dict[str, str], production: bool = True) -> st
             return f"Bearer {token}"
 
     # Request a new access token and store it
-    requested_time: datetime.datetime = datetime.datetime.now()
-    access_token_response: dict[str, str | int] = __fetch_access_token(
-        credentials=credentials
+    requested_time = datetime.datetime.now()
+    access_token_response: dict[str, str] = __fetch_access_token(
+        credentials=credentials, audience=audience
     )
-    token: str = access_token_response["access_token"]
-    valid_delta: datetime.timedelta = datetime.timedelta(
-        seconds=int(access_token_response["expires_in"] * 0.75)
+    token = access_token_response["access_token"]
+    valid_delta = datetime.timedelta(
+        seconds=int(int(access_token_response["expires_in"]) * 0.75)
     )
     __ACCESS_TOKENS[audience] = (valid_delta, requested_time, token)
     return f"Bearer {token}"
