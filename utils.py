@@ -12,6 +12,7 @@ from connection_wrapper import ConnectionWrapper
 
 __CONNECTION_WRAPPERS = {}
 __ACCESS_TOKENS: dict[str, tuple[datetime.timedelta, datetime.datetime, str]] = {}
+__PDMV_API_ACCESS_CREDENTIALS: dict[str, str] | None = None
 
 
 def make_cmsweb_request(query_url, data=None, timeout=90, keep_open=True):
@@ -28,6 +29,13 @@ def make_cmsweb_prod_request(query_url, data=None, timeout=90, keep_open=True):
     return make_request(
         "https://cmsweb-prod.cern.ch:8443", query_url, data, timeout, keep_open
     )
+
+
+def make_cmsweb_request(query_url, data=None, timeout=90, keep_open=True):
+    """
+    Make a request to https://cmsweb.cern.ch
+    """
+    return make_request("https://cmsweb.cern.ch", query_url, data, timeout, keep_open)
 
 
 def make_request(
@@ -96,6 +104,7 @@ def get_client_credentials() -> dict[str, str]:
         "CALLBACK_CLIENT_ID",
         "CALLBACK_CLIENT_SECRET",
         "APPLICATION_CLIENT_ID",
+        "DEV_APPLICATION_CLIENT_ID",
     ]
     credentials = {}
     msg = (
@@ -117,14 +126,17 @@ def get_client_credentials() -> dict[str, str]:
     raise RuntimeError(msg)
 
 
-def __fetch_access_token(credentials: dict[str, str]) -> dict[str, str | int]:
+def __fetch_access_token(
+    credentials: dict[str, str], audience: str
+) -> dict[str, str | int]:
     """
     Request an access token to Keycloak (CERN SSO) via a
     client credential grant.
 
     Args:
         credentials (dict): Credentials required to perform a client credential grant
-            Client ID, Client Secret and Target application (audience)
+            Client ID, Client Secret
+        audience (str): Target application for requesting the token.
 
     Returns:
         dict[str, str | int]: Access token to authenticate request to other PdmV services
@@ -137,7 +149,6 @@ def __fetch_access_token(credentials: dict[str, str]) -> dict[str, str | int]:
     cern_api_access_endpoint: str = "/auth/realms/cern/api-access/token"
     client_id = credentials["CALLBACK_CLIENT_ID"]
     client_secret = credentials["CALLBACK_CLIENT_SECRET"]
-    audience = credentials["APPLICATION_CLIENT_ID"]
     url_encoded_data: dict = {
         "grant_type": "client_credentials",
         "client_id": client_id,
@@ -165,14 +176,16 @@ def __fetch_access_token(credentials: dict[str, str]) -> dict[str, str | int]:
     return token_response
 
 
-def get_access_token(credentials: dict[str, str]) -> str:
+def get_access_token(credentials: dict[str, str], production: bool = True) -> str:
     """
     Retrieves an access token to send via the Authorization header
     to authenticate one request to another service.
 
     Args:
         credentials (dict): Credentials required to perform a client credential grant
-            Client ID, Client Secret and Target application (audience) if required
+            Client ID, Client Secret and target applications (audience) if required
+        production (bool): If True, this will request an access token for the production application
+            else to the development one.
 
     Returns:
         str: Authorization header to send into HTTP request.
@@ -181,7 +194,11 @@ def get_access_token(credentials: dict[str, str]) -> str:
         RuntimeError: If there is an issue requesting the access token
     """
     # Check if we have already a valid token
-    audience = credentials["APPLICATION_CLIENT_ID"]
+    audience = (
+        credentials["APPLICATION_CLIENT_ID"]
+        if production
+        else credentials["DEV_APPLICATION_CLIENT_ID"]
+    )
     access_token: tuple[
         datetime.timedelta, datetime.datetime, str
     ] | None = __ACCESS_TOKENS.get(audience)
