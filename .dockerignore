@@ -1,0 +1,4 @@
+# Ignore the following files for image building
+venv/
+__pycache__/
+*.pid

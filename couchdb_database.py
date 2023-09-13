@@ -18,7 +18,7 @@ class Database:
 
     def __init__(self):
         self.logger = logging.getLogger('logger')
-        self.database_url = 'http://localhost:5984'
+        self.database_url = os.getenv('DB_URL', 'http://localhost:5984')
         self.workflows_table = self.database_url + '/requests'
         self.workflows_input_dataset_view = self.workflows_table + '/_design/_designDoc/_view/inputDatasets'
         self.workflows_output_datasets_view = self.workflows_table + '/_design/_designDoc/_view/outputDatasets'

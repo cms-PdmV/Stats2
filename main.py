@@ -7,7 +7,15 @@ import time
 import argparse
 import re
 import logging
-from flask import Flask, render_template, request, make_response, redirect
+from flask import (
+    Flask,
+    render_template, 
+    request, 
+    make_response, 
+    redirect,
+    Response,
+    jsonify
+)
 from flask_restful import Api
 from couchdb_database import Database
 from utils import setup_console_logging, get_unique_list, get_nice_size, comma_separate_thousands
@@ -19,6 +27,8 @@ app = Flask(__name__,
             template_folder='./html')
 api = Api(app)
 
+# Set up logging
+setup_console_logging()
 
 @app.route('/get_json/<string:workflow_name>')
 @app.route('/api/get_json/<string:workflow_name>')
@@ -54,6 +64,73 @@ def html_api_fetch():
     response = make_response(json.dumps(workflows, indent=2, sort_keys=True), 200)
     response.headers['Content-Type'] = 'application/json'
     return response
+
+
+def administrative_action() -> bool:
+    """
+    Check that a HTTP request is allowed to execute some administrative actions
+    by checking roles provided in its headers.
+
+    Returns:
+        bool: True if the request provides at least one of the autorized roles to perform
+            administrative actions, False otherwise.
+    """
+    authorized: list[str] = ["cms-pdmv-serv"]
+    request_roles: list[str] = []
+    roles_str: str = ""
+    
+    if request.headers.get("Adfs-Group"):
+        roles_str = request.headers.get("Adfs-Group", "")
+        roles_str = roles_str.replace(";", ",")
+        request_roles = roles_str.strip().split(",")
+    elif request.headers.get("Roles"):
+        roles_str = request.headers.get("Roles", "")
+        roles_str = roles_str.replace(";", ",")
+        request_roles = roles_str.strip().split(",")
+
+    auth_set: set[str] = set(authorized)
+    roles_set: set[str] = set(request_roles)
+    return bool(auth_set & roles_set)
+
+
+@app.route(rule='/api/update', methods=["POST"])
+def update_workflow() -> Response:
+    error: dict[str, str] = {}
+    
+    # Check request is allowed
+    authorized: bool = administrative_action()
+    if not authorized:
+        error = {"msg": "You are not allowed to perform this action"}
+        response = jsonify(error)
+        response.status_code = 403
+        return response
+
+    # Get the workflow name from query parameters
+    workflow_name: str = request.args.get("workflow", "")
+    if not workflow_name:
+        error = {"msg": "Please provide the workflow name via 'workflow' query parameter"}
+        response = jsonify(error)
+        response.status_code = 400
+        return response
+
+    # Perform the update
+    try:
+        stats_update: StatsUpdate = StatsUpdate()
+        stats_update.perform_update(workflow_name=workflow_name)
+        
+        result: dict[str, str] = {"msg": f"Workflow {workflow_name} has been updated successfully"}
+        response = jsonify(result)
+        response.status_code = 200
+        return response
+    except Exception as e:
+        error_msg: str = (
+            f"Unfortunately, there were issues updating workflow: {workflow_name}, there are described below:\n"
+            f"{str(e)}"
+        )
+        error = {"error": error_msg}
+        response = jsonify(error)
+        response.status_code = 500
+        return response
 
 
 def matches_regex(value, regex):
@@ -99,14 +176,14 @@ def get_campaign_link(name, service):
     Return a link to a campaign in a given service
     """
     if service == 'mc':
-        return 'https://cms-pdmv.cern.ch/mcm/campaigns?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/mcm/campaigns?prepid=%s' % (name)
     if service == 'rereco_machine':
-        return 'https://cms-pdmv.cern.ch/rereco/subcampaigns?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/rereco/subcampaigns?prepid=%s' % (name)
     if service == 'relval_machine':
         cmssw_version = name.split('__')[0]
         batch_name = name.split('__')[-1].split('-')[0]
         campaign_timestamp = name.split('-')[-1]
-        return 'https://cms-pdmv.cern.ch/relval/relvals?cmssw_release=%s&batch_name=%s&campaign_timestamp=%s' % (cmssw_version, batch_name, campaign_timestamp)
+        return 'https://cms-pdmv-prod.web.cern.ch/relval/relvals?cmssw_release=%s&batch_name=%s&campaign_timestamp=%s' % (cmssw_version, batch_name, campaign_timestamp)
 
     return ''
 
@@ -116,11 +193,11 @@ def get_request_link(name, service):
     Return a link to a request in a given service
     """
     if service == 'mc':
-        return 'https://cms-pdmv.cern.ch/mcm/requests?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/mcm/requests?prepid=%s' % (name)
     if service == 'rereco_machine':
-        return 'https://cms-pdmv.cern.ch/rereco/requests?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/rereco/requests?prepid=%s' % (name)
     if service == 'relval_machine':
-        return 'https://cms-pdmv.cern.ch/relval/relvals?prepid=%s' % (name)
+        return 'https://cms-pdmv-prod.web.cern.ch/relval/relvals?prepid=%s' % (name)
 
     return ''
 
@@ -135,7 +212,7 @@ def get_campaign_links(name, service_type, service_name):
                       'link': get_campaign_link(name, service_type)})
 
     links.append({'name': 'pMp',
-                  'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (name)})
+                  'link': 'https://cms-pdmv-prod.web.cern.ch/pmp/historical?r=%s' % (name)})
     return links
 
 
@@ -149,7 +226,7 @@ def get_request_links(name, service_type, service_name):
                       'link': get_request_link(name, service_type)})
 
     links.append({'name': 'pMp',
-                  'link': 'https://cms-pdmv.cern.ch/pmp/historical?r=%s' % (name)})
+                  'link': 'https://cms-pdmv-prod.web.cern.ch/pmp/historical?r=%s' % (name)})
     return links
 
 
@@ -396,7 +473,6 @@ def run_flask():
     """
     Parse command line arguments and start flask web server
     """
-    setup_console_logging()
     parser = argparse.ArgumentParser(description='Stats2')
     parser.add_argument('--port',
                         help='Port, default is 8001',
