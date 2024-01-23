@@ -204,6 +204,7 @@ class StatsUpdate():
                       'RequestTransition',
                       'RequestType',
                       'SizePerEvent',
+                      'TotalInputLumis',
                       'TimePerEvent']
         if 'Task1' in wf_dict and 'InputDataset' in wf_dict['Task1']:
             wf_dict['InputDataset'] = wf_dict['Task1']['InputDataset']
@@ -301,6 +302,19 @@ class StatsUpdate():
 
         file_size = int(file_summary.get('file_size', 0))
         return file_size
+    
+    def get_dataset_lumisections(self, dataset_name):
+        """
+        Get the lumisections for specified dataset from DBS.
+        """
+        if dataset_name not in self.dataset_filesummaries_cache:
+            file_summary = self.__get_filesummaries_from_dbs(dataset_name)
+            self.dataset_filesummaries_cache[dataset_name] = file_summary
+        else:
+            file_summary = self.dataset_filesummaries_cache[dataset_name]
+
+        lumisections = int(file_summary.get('num_lumi', 0))
+        return lumisections
 
     def get_new_history_entry(self, wf_dict):
         """
