@@ -67,7 +67,7 @@ def retrieve_all_from_request_type(type: str, limit: int = 2**64) -> list[dict]:
     headers = {
         "Accept": "application/json",
         "Content-type": "application/json",
-        "Authorization": f"Basic {os.getenv('STATS_DB_AUTH_HEADER')}"
+        "Authorization": os.getenv('STATS_DB_AUTH_HEADER')
     }
     result = make_request(
         host=os.getenv("DB_URL"),
@@ -208,6 +208,8 @@ def execute() -> None:
             stats_req.get("_id"),
         )
         updated = include_lumisections(stats_req)
+        logger.info("Storing update into database")
+        stats_handler.database.update_workflow(updated)
         rereco_lumisections.append(updated)
     
     end_time = datetime.datetime.now()
