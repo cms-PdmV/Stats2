@@ -107,37 +107,6 @@ def include_lumisections(stats_req: dict) -> dict:
     Returns
         dict: Stats2 request with lumisection data included.
     """
-    def __update_event_history(history_timestamp: dict, set_default: bool = True) -> dict:
-        """
-        Updates a record for the 'EventNumberHistory' object including the
-        lumisection record per each registered dataset.
-
-        Args:
-            history_timestamp (dict): 'EventNumberHistory' object included into Stats2 request.
-            set_default (bool): If True, sets the lumisection value ('Lumis') as zero
-                otherwise, this queries DBS and returns the current value for the dataset.
-
-        Returns:
-            dict: Event history record with lumisection data included.
-        """
-        history = deepcopy(history_timestamp)
-        datasets: dict = history.get("Datasets", {})
-        for dataset_name, dataset_record in datasets.items():
-            if not set_default:
-                # Query DBS
-                dbs_lumis = stats_handler.get_dataset_lumisections(dataset_name=dataset_name)
-                dataset_record["Lumis"] = dbs_lumis
-            else:
-                # Set zero
-                dataset_record["Lumis"] = 0
-
-            # Update the content
-            history["Datasets"][dataset_name] = dataset_record
-            pass
-
-        return history
-
-
     # Start function
     name = "RequestName"
     lumis = "TotalInputLumis"
@@ -165,8 +134,8 @@ def include_lumisections(stats_req: dict) -> dict:
 
         # Update the most recent history
         history_updated.append(
-            __update_event_history(
-                history_timestamp=history_data.pop(0),
+            stats_handler.update_event_history_lumisections(
+                history_data.pop(0),
                 set_default=False
             )
         )
@@ -174,9 +143,7 @@ def include_lumisections(stats_req: dict) -> dict:
         for h in history_data:
             # Set the remaining values as zero
             history_updated.append(
-                __update_event_history(
-                    history_timestamp=h,
-                )
+                stats_handler.update_event_history_lumisections(h)
             )
 
         # Update the history

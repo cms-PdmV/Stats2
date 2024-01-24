@@ -8,6 +8,7 @@ import json
 import traceback
 import os
 import subprocess
+from copy import deepcopy
 from couchdb_database import Database
 from utils import (
     make_cmsweb_request, 
@@ -360,33 +361,39 @@ class StatsUpdate():
             dataset_access_type = dbs_dataset['dataset_access_type']
             dataset_events = self.get_event_count_from_dbs(dataset_name, dataset_access_type)
             dataset_size = self.get_dataset_size_from_dbs(dataset_name)
+            dataset_lumis = self.get_dataset_lumisections(dataset_name)
             history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
                                                        'Events': dataset_events,
-                                                       'Size': dataset_size}
+                                                       'Size': dataset_size,
+                                                       'Lumis': dataset_lumis}
             # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events, %s size and %s type for %s (%s)',
+            self.logger.info('Setting %s events, %s size, %s lumisections and %s type for %s (%s)',
                              dataset_events,
                              dataset_size,
+                             dataset_lumis,
                              dataset_access_type,
                              dataset_name,
                              wf_dict.get('_id'))
             output_datasets_set.remove(dataset_name)
 
         for dataset_name in output_datasets_set:
-            # Datasets that were not in the cache and not in response of query, make them NONE type with 0 events and 0 size
+            # Datasets that were not in the cache and not in response of query, make them NONE type with 0 events, 0 lumis and 0 size
             dataset_access_type = 'NONE'
             dataset_events = 0
             dataset_size = 0
+            dataset_lumis = 0
             # Setting defaults
             history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
                                                        'Events': dataset_events,
-                                                       'Size': dataset_size}
+                                                       'Size': dataset_size,
+                                                       'Lumis': dataset_lumis}
             # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events, %s size and %s type for %s (%s)',
+            self.logger.info('Setting %s events, %s size, %s lumisections and %s type for %s (%s)',
                              dataset_events,
                              dataset_size,
+                             dataset_lumis,
                              dataset_access_type,
                              dataset_name,
                              wf_dict.get('_id'))
@@ -402,6 +409,35 @@ class StatsUpdate():
             return None
 
         return history_entry
+    
+    def update_event_history_lumisections(self, history_entry, set_default=True):
+        """
+        Updates a record for the 'EventNumberHistory' object including the
+        lumisection record per each registered dataset.
+
+        Args:
+            history_entry (dict): 'EventNumberHistory' object included into Stats2 request.
+            set_default (bool): If True, sets the lumisection value ('Lumis') as zero
+                in case it doesn't exist before, otherwise, this queries DBS and returns 
+                the current value for the dataset.
+
+        Returns:
+            dict: Event history record with lumisection data included.
+        """
+        history = deepcopy(history_entry)
+        datasets = history.get("Datasets", {})
+        for dataset_name, dataset_record in datasets.items():
+            lumis = dataset_record.get("Lumis", 0)
+            if not set_default:
+                # Query DBS
+                lumis = self.get_dataset_lumisections(dataset_name=dataset_name)
+
+            dataset_record["Lumis"] = lumis
+
+            # Update the content
+            history["Datasets"][dataset_name] = dataset_record
+
+        return history
 
     def add_history_entry_to_workflow(self, wf_dict, new_history_entry):
         """
@@ -423,6 +459,14 @@ class StatsUpdate():
                 return False
 
         history_entries.append(new_history_entry)
+
+        # Before returning the complete history, include the 'lumisection' attribute if
+        # doesn't exists.
+        history_entries = [
+            self.update_event_history_lumisections(entry)
+            for entry in history_entries
+        ]
+
         wf_dict['EventNumberHistory'] = history_entries
         # self.logger.info(json.dumps(history_entry, indent=2))
         return True
@@ -728,7 +772,7 @@ class StatsUpdate():
         workflow_name = workflow['_id']
         workflow_type = workflow.get('RequestType')
         outside_urls = []
-        self.logger.info('Trigger outside for %s (%s)', workflow_name, workflow_type)
+
         if trigger_prod:
             if workflow_type.lower() == 'rereco' or workflow.get('PrepID', '').startswith('ReReco-'):
                 outside_urls.append({'host': 'https://cms-pdmv-prod.web.cern.ch',
@@ -758,23 +802,25 @@ class StatsUpdate():
                                      'endpoint': f'/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
                                      'production': False})
         
-        credentials: dict[str, str] = get_client_credentials()
-        headers: dict[str, str] = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-        for outside in outside_urls:
-            self.logger.info('Triggering outside for %s', workflow_name)
-            production = outside.get('production', True)
-            auth_token_header = get_access_token(credentials=credentials, production=production)
-            headers = {**headers, "Authorization": auth_token_header}
-            make_request(
-                host=outside["host"], 
-                query_url=outside["endpoint"], 
-                data=outside.get("data"), 
-                timeout=20, 
-                headers=headers
-            )
+        if trigger_prod or trigger_dev:
+            self.logger.info('Trigger outside for %s (%s)', workflow_name, workflow_type)
+            credentials: dict[str, str] = get_client_credentials()
+            headers: dict[str, str] = {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            for outside in outside_urls:
+                self.logger.info('Triggering outside for %s', workflow_name)
+                production = outside.get('production', True)
+                auth_token_header = get_access_token(credentials=credentials, production=production)
+                headers = {**headers, "Authorization": auth_token_header}
+                make_request(
+                    host=outside["host"], 
+                    query_url=outside["endpoint"], 
+                    data=outside.get("data"), 
+                    timeout=20, 
+                    headers=headers
+                )
 
 
 def main():
