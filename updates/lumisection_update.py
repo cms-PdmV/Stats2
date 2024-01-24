@@ -146,6 +146,12 @@ def include_lumisections(stats_req: dict) -> dict:
                 stats_handler.update_event_history_lumisections(h)
             )
 
+        # Sort the history by time
+        history_updated = sorted(
+            history_updated,
+            key=lambda entry: entry.get('Time', 0),
+        )
+
         # Update the history
         request[history] = history_updated
 
