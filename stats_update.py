@@ -194,6 +194,8 @@ class StatsUpdate():
         expected_events = self.get_expected_events_with_dict(wf_dict)
         campaigns = self.get_campaigns_from_workflow(wf_dict)
         requests = self.get_requests_from_workflow(wf_dict)
+        total_input_lumis: int = wf_dict.get('TotalInputLumis', 0)
+        include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
         attributes = ['AcquisitionEra',
                       'CMSSWVersion',
                       'InputDataset',
@@ -205,7 +207,6 @@ class StatsUpdate():
                       'RequestTransition',
                       'RequestType',
                       'SizePerEvent',
-                      'TotalInputLumis',
                       'TimePerEvent']
         if 'Task1' in wf_dict and 'InputDataset' in wf_dict['Task1']:
             wf_dict['InputDataset'] = wf_dict['Task1']['InputDataset']
@@ -227,6 +228,8 @@ class StatsUpdate():
         wf_dict['OutputDatasets'] = self.sort_datasets(self.flat_list(wf_dict['OutputDatasets']))
         wf_dict['EventNumberHistory'] = []
         wf_dict['RequestPriority'] = int(wf_dict.get('RequestPriority', 0))
+        if include_lumisections:
+            wf_dict['TotalInputLumis'] = total_input_lumis
         if 'ProcessingString' in wf_dict and not isinstance(wf_dict['ProcessingString'], str):
             del wf_dict['ProcessingString']
 
@@ -261,6 +264,23 @@ class StatsUpdate():
             return filesummaries[0]
 
         return {}
+    
+    def lumis_should_be_retrieved(self, reqmgr_data):
+        """
+        Determines if the lumisections should be included into a Stats2
+        document based on the ReqMgr2 attributes.
+
+        Args:
+            reqmgr_data (dict): ReqMgr2 workflow attributes.
+        
+        Returns:
+            True if the lumisections should be included, False otherwise
+        """
+        
+        # LumiList attribute exists and it is not empty
+        is_rereco: bool = reqmgr_data.get('RequestType', '') == 'ReReco'
+        lumi_list_not_empty: bool = bool(reqmgr_data.get('LumiList'))
+        return is_rereco and lumi_list_not_empty
 
     def get_workflows_with_same_output(self, workflow_names):
         """
@@ -321,6 +341,7 @@ class StatsUpdate():
         """
         Form a new history entry dictionary for given workflow.
         """
+        include_lumisections: bool = bool(wf_dict.get('TotalInputLumis'))
         output_datasets = wf_dict.get('OutputDatasets')
         if not output_datasets:
             return None
@@ -361,17 +382,18 @@ class StatsUpdate():
             dataset_access_type = dbs_dataset['dataset_access_type']
             dataset_events = self.get_event_count_from_dbs(dataset_name, dataset_access_type)
             dataset_size = self.get_dataset_size_from_dbs(dataset_name)
-            dataset_lumis = self.get_dataset_lumisections(dataset_name)
             history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
                                                        'Events': dataset_events,
-                                                       'Size': dataset_size,
-                                                       'Lumis': dataset_lumis}
+                                                       'Size': dataset_size}
+            if include_lumisections:
+                dataset_lumis = self.get_dataset_lumisections(dataset_name)
+                history_entry['Datasets'][dataset_name]['Lumis'] = dataset_lumis
+
             # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events, %s size, %s lumisections and %s type for %s (%s)',
+            self.logger.info('Setting %s events, %s size, and %s type for %s (%s)',
                              dataset_events,
                              dataset_size,
-                             dataset_lumis,
                              dataset_access_type,
                              dataset_name,
                              wf_dict.get('_id'))
@@ -382,18 +404,20 @@ class StatsUpdate():
             dataset_access_type = 'NONE'
             dataset_events = 0
             dataset_size = 0
-            dataset_lumis = 0
+
             # Setting defaults
             history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
                                                        'Events': dataset_events,
-                                                       'Size': dataset_size,
-                                                       'Lumis': dataset_lumis}
+                                                       'Size': dataset_size}
+
+            if include_lumisections:
+                history_entry['Datasets'][dataset_name]['Lumis'] = 0
+
             # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events, %s size, %s lumisections and %s type for %s (%s)',
+            self.logger.info('Setting %s events, %s size, and %s type for %s (%s)',
                              dataset_events,
                              dataset_size,
-                             dataset_lumis,
                              dataset_access_type,
                              dataset_name,
                              wf_dict.get('_id'))
@@ -443,6 +467,7 @@ class StatsUpdate():
         """
         Add history entry to workflow if such entry does not exist.
         """
+        include_lumisections: bool = bool(wf_dict.get('TotalInputLumis'))
         if new_history_entry is None:
             return False
 
@@ -460,12 +485,13 @@ class StatsUpdate():
 
         history_entries.append(new_history_entry)
 
-        # Before returning the complete history, include the 'lumisection' attribute if
-        # doesn't exists.
-        history_entries = [
-            self.update_event_history_lumisections(entry)
-            for entry in history_entries
-        ]
+        # Before returning the complete history, include the 'lumisection' attribute
+        # if required.
+        if include_lumisections:
+            history_entries = [
+                self.update_event_history_lumisections(entry)
+                for entry in history_entries
+            ]
 
         wf_dict['EventNumberHistory'] = history_entries
         # self.logger.info(json.dumps(history_entry, indent=2))

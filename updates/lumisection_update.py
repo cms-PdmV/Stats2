@@ -118,42 +118,44 @@ def include_lumisections(stats_req: dict) -> dict:
     reqmgr_data: dict = stats_handler.get_new_dict_from_reqmgr2(
         workflow_name=workflow_name
     )
-    reqmgr_lumis: int = reqmgr_data.get(lumis, 0)
-    request[lumis] = reqmgr_lumis
+    include_lumis: bool = stats_handler.lumis_should_be_retrieved(reqmgr_data)
+    if include_lumis:
+        reqmgr_lumis: int = reqmgr_data.get(lumis, 0)
+        request[lumis] = reqmgr_lumis
 
-    # Update the dataset history.
-    # Include the lumis only the last record.
-    history_data: list[dict] = request.get(history, [])
-    if history_data:
-        history_updated: list[dict] = []
-        history_data = sorted(
-            history_data, 
-            key=lambda v: v.get("Time", 0),
-            reverse=True
-        )
-
-        # Update the most recent history
-        history_updated.append(
-            stats_handler.update_event_history_lumisections(
-                history_data.pop(0),
-                set_default=False
+        # Update the dataset history.
+        # Include the lumis only the last record.
+        history_data: list[dict] = request.get(history, [])
+        if history_data:
+            history_updated: list[dict] = []
+            history_data = sorted(
+                history_data, 
+                key=lambda v: v.get("Time", 0),
+                reverse=True
             )
-        )
 
-        for h in history_data:
-            # Set the remaining values as zero
+            # Update the most recent history
             history_updated.append(
-                stats_handler.update_event_history_lumisections(h)
+                stats_handler.update_event_history_lumisections(
+                    history_data.pop(0),
+                    set_default=False
+                )
             )
 
-        # Sort the history by time
-        history_updated = sorted(
-            history_updated,
-            key=lambda entry: entry.get('Time', 0),
-        )
+            for h in history_data:
+                # Set the remaining values as zero
+                history_updated.append(
+                    stats_handler.update_event_history_lumisections(h)
+                )
 
-        # Update the history
-        request[history] = history_updated
+            # Sort the history by time
+            history_updated = sorted(
+                history_updated,
+                key=lambda entry: entry.get('Time', 0),
+            )
+
+            # Update the history
+            request[history] = history_updated
 
     
     return request
