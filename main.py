@@ -319,10 +319,8 @@ def html_get(page=0):
         for dataset in req['OutputDatasets']:
             new_dataset = {'Name': dataset,
                            'Events': 0,
-                           'Lumis': 0,
                            'Type': 'NONE',
                            'CompletedPerc': '0.0',
-                           'LumiCompletedPerc': '0.0',
                            'Datatier': dataset.split('/')[-1],
                            'Size': -1,
                            'NiceSize': '0B'}
@@ -336,16 +334,16 @@ def html_get(page=0):
             for history_entry in history_entries:
                 history_entry = history_entry['Datasets']
                 if dataset in history_entry:
-                    output_lumisections: int = history_entry[dataset].get('Lumis', 0)
+                    output_lumisections: int | None = history_entry[dataset].get('Lumis')
                     new_dataset['Events'] = comma_separate_thousands(history_entry[dataset]['Events'])
-                    new_dataset['Lumis'] = comma_separate_thousands(output_lumisections)
                     new_dataset['Type'] = history_entry[dataset]['Type']
                     new_dataset['Size'] = history_entry[dataset].get('Size', -1)
                     new_dataset['NiceSize'] = get_nice_size(new_dataset['Size'])
                     if total_events > 0:
                         percentage = history_entry[dataset]['Events'] / total_events * 100.0
                         new_dataset['CompletedPerc'] = '%.2f' % (percentage)
-                    if total_lumisections > 0:
+                    if output_lumisections and total_lumisections > 0:
+                        new_dataset['Lumis'] = comma_separate_thousands(output_lumisections)
                         lumi_percentage = output_lumisections / total_lumisections * 100.0
                         new_dataset['LumiCompletedPerc'] = '%.2f' % (lumi_percentage)
 
@@ -355,7 +353,8 @@ def html_get(page=0):
 
         req['OutputDatasets'] = calculated_datasets
         req['TotalEvents'] = comma_separate_thousands(int(total_events))
-        req['TotalInputLumis'] = comma_separate_thousands(int(total_lumisections))
+        if total_lumisections > 0:
+            req['TotalInputLumis'] = comma_separate_thousands(int(total_lumisections))
 
         if 'RequestPriority' in req:
             req['RequestPriority'] = comma_separate_thousands(int(req['RequestPriority']))

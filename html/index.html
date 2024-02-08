@@ -39,8 +39,11 @@
                 <small>PrepID:</small> <a href="0?prepid={{ workflow.PrepID }}">{{ workflow.PrepID }}</a><br>
               {% endif %}
               <small>Type:</small> <a href="0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a><br>
-              <small>Total events:</small> {{ workflow.TotalEvents }}<br>
-              <small>Total lumisections:</small> {{ workflow.TotalInputLumis }}<br>
+              {% if workflow.TotalInputLumis is defined %}
+                <small>Total lumisections:</small> {{ workflow.TotalInputLumis }}<br>
+              {% else %}
+                <small>Total events:</small> {{ workflow.TotalEvents }}<br>
+              {% endif %}
               <small>Priority:</small> {{ workflow.RequestPriority }}<br>
               <small>Last update:</small> {{ workflow.LastUpdateAgo }} ago <small>({{ workflow.LastUpdate | safe }})</small><br>
               {% if workflow.FirstStatus | length > 0 %}
@@ -104,10 +107,13 @@
                     <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar {{dataset.Type | lower}}-bar"></div>
                   </div>
                   <small>datatier:</small> {{dataset.Datatier}},
-                  <small>completed (on events):</small> {{dataset.CompletedPerc}}%,
-                  <small>completed (on lumisections):</small> {{dataset.LumiCompletedPerc}}%,
-                  <small>events:</small> {{dataset.Events}},
-                  <small>lumisections:</small> {{dataset.Lumis}},
+                  {% if dataset.Lumis is defined %}
+                    <small>completed (on lumisections):</small> {{dataset.LumiCompletedPerc}}%,
+                    <small>lumisections:</small> {{dataset.Lumis}},
+                  {% else %}
+                    <small>completed (on events):</small> {{dataset.CompletedPerc}}%,  
+                    <small>events:</small> {{dataset.Events}},
+                  {% endif %}
                   {% if dataset.Size > 0 %}<small>size:</small> <span title="{{dataset.Size}} bytes">{{dataset.NiceSize}}</span>,{% endif %}
                   <small>type:</small> <b class="{{dataset.Type | lower}}-type">{{dataset.Type}}</b>,
                   <a target="_blank" href="https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D{{ dataset.Name }}"><small>go to</small> DAS</a>
