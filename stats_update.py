@@ -196,6 +196,7 @@ class StatsUpdate():
         requests = self.get_requests_from_workflow(wf_dict)
         total_input_lumis: int = wf_dict.get('TotalInputLumis', 0)
         include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
+        self.logger.info('Get new dictionary from ReqMgr2 data - Lumisections to be included: %s', include_lumisections)
         attributes = ['AcquisitionEra',
                       'CMSSWVersion',
                       'InputDataset',
@@ -280,7 +281,9 @@ class StatsUpdate():
         # LumiList attribute exists and it is not empty
         is_rereco: bool = reqmgr_data.get('RequestType', '') == 'ReReco'
         lumi_list_not_empty: bool = bool(reqmgr_data.get('LumiList'))
-        return is_rereco and lumi_list_not_empty
+        has_total_input_lumis: bool = bool(reqmgr_data.get('TotalInputLumis'))
+        decision = is_rereco and lumi_list_not_empty and has_total_input_lumis
+        return decision
 
     def get_workflows_with_same_output(self, workflow_names):
         """
@@ -342,6 +345,7 @@ class StatsUpdate():
         Form a new history entry dictionary for given workflow.
         """
         include_lumisections: bool = bool(wf_dict.get('TotalInputLumis'))
+        self.logger.info('Getting a new entry - Lumisections to be included: %s', include_lumisections)
         output_datasets = wf_dict.get('OutputDatasets')
         if not output_datasets:
             return None
@@ -354,11 +358,11 @@ class StatsUpdate():
             if output_dataset in self.dataset_info_cache:
                 # Trying to find type, events and size in cache
                 cache_entry = self.dataset_info_cache[output_dataset]
-                self.logger.info('Found %s dataset info in cache. Type: %s, events: %s, size: %s',
-                                 output_dataset,
-                                 cache_entry['Type'],
-                                 cache_entry['Events'],
-                                 cache_entry['Size'])
+                self.logger.info(
+                    'Found cache entry for dataset %s: %s', 
+                    output_dataset, 
+                    json.dumps(cache_entry, indent=5)
+                )
                 history_entry['Datasets'][output_dataset] = cache_entry
                 output_datasets_set.remove(output_dataset)
             else:
@@ -391,12 +395,11 @@ class StatsUpdate():
 
             # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events, %s size, and %s type for %s (%s)',
-                             dataset_events,
-                             dataset_size,
-                             dataset_access_type,
-                             dataset_name,
-                             wf_dict.get('_id'))
+            self.logger.info(
+                'New cache entry for workflow %s: %s',
+                wf_dict.get('_id'),
+                json.dumps(self.dataset_info_cache[dataset_name], indent=5)
+            )
             output_datasets_set.remove(dataset_name)
 
         for dataset_name in output_datasets_set:
@@ -415,12 +418,11 @@ class StatsUpdate():
 
             # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events, %s size, and %s type for %s (%s)',
-                             dataset_events,
-                             dataset_size,
-                             dataset_access_type,
-                             dataset_name,
-                             wf_dict.get('_id'))
+            self.logger.info(
+                'Dummy record created for workflow %s: %s',
+                wf_dict.get('_id'),
+                json.dumps(self.dataset_info_cache[dataset_name], indent=5)
+            )
 
         if len(history_entry['Datasets']) != len(set(output_datasets)):
             self.logger.error('Wrong number of datasets for %s. '
@@ -468,6 +470,7 @@ class StatsUpdate():
         Add history entry to workflow if such entry does not exist.
         """
         include_lumisections: bool = bool(wf_dict.get('TotalInputLumis'))
+        self.logger.info("Adding new history to workflow - Include lumisections: %s", include_lumisections)
         if new_history_entry is None:
             return False
 

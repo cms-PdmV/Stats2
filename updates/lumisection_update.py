@@ -118,7 +118,7 @@ def include_lumisections(stats_req: dict) -> dict:
     reqmgr_data: dict = stats_handler.get_new_dict_from_reqmgr2(
         workflow_name=workflow_name
     )
-    include_lumis: bool = stats_handler.lumis_should_be_retrieved(reqmgr_data)
+    include_lumis: bool = bool(reqmgr_data.get("TotalInputLumis"))
     if include_lumis:
         reqmgr_lumis: int = reqmgr_data.get(lumis, 0)
         request[lumis] = reqmgr_lumis
