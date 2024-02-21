@@ -194,7 +194,6 @@ class StatsUpdate():
         expected_events = self.get_expected_events_with_dict(wf_dict)
         campaigns = self.get_campaigns_from_workflow(wf_dict)
         requests = self.get_requests_from_workflow(wf_dict)
-        total_input_lumis: int = wf_dict.get('TotalInputLumis', 0)
         include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
         self.logger.info('Get new dictionary from ReqMgr2 data - Lumisections to be included: %s', include_lumisections)
         attributes = ['AcquisitionEra',
@@ -207,6 +206,8 @@ class StatsUpdate():
                       'RequestPriority',
                       'RequestTransition',
                       'RequestType',
+                      'LumiList',
+                      'TotalInputLumis',
                       'SizePerEvent',
                       'TimePerEvent']
         if 'Task1' in wf_dict and 'InputDataset' in wf_dict['Task1']:
@@ -229,8 +230,6 @@ class StatsUpdate():
         wf_dict['OutputDatasets'] = self.sort_datasets(self.flat_list(wf_dict['OutputDatasets']))
         wf_dict['EventNumberHistory'] = []
         wf_dict['RequestPriority'] = int(wf_dict.get('RequestPriority', 0))
-        if include_lumisections:
-            wf_dict['TotalInputLumis'] = total_input_lumis
         if 'ProcessingString' in wf_dict and not isinstance(wf_dict['ProcessingString'], str):
             del wf_dict['ProcessingString']
 
@@ -266,23 +265,24 @@ class StatsUpdate():
 
         return {}
     
-    def lumis_should_be_retrieved(self, reqmgr_data):
+    def lumis_should_be_retrieved(self, doc):
         """
-        Determines if the lumisections should be included into a Stats2
-        document based on the ReqMgr2 attributes.
+        Determines if the lumisections should be included based on
+        Stats2 or ReqMgr2 documents.
 
         Args:
-            reqmgr_data (dict): ReqMgr2 workflow attributes.
+            doc (dict): ReqMgr2 workflow attributes or Stats2 document.
         
         Returns:
             True if the lumisections should be included, False otherwise
         """
-        
-        # LumiList attribute exists and it is not empty
-        is_rereco: bool = reqmgr_data.get('RequestType', '') == 'ReReco'
-        lumi_list_not_empty: bool = bool(reqmgr_data.get('LumiList'))
-        has_total_input_lumis: bool = bool(reqmgr_data.get('TotalInputLumis'))
-        decision = is_rereco and lumi_list_not_empty and has_total_input_lumis
+        request_type: str = doc.get('RequestType', '').lower()
+        is_rereco_related: bool = request_type == 'rereco' or request_type == 'resubmission'
+
+        lumi_list_not_empty: bool = bool(doc.get('LumiList'))
+        has_total_input_lumis: bool = bool(doc.get('TotalInputLumis'))
+
+        decision = is_rereco_related and lumi_list_not_empty and has_total_input_lumis
         return decision
 
     def get_workflows_with_same_output(self, workflow_names):
@@ -344,7 +344,7 @@ class StatsUpdate():
         """
         Form a new history entry dictionary for given workflow.
         """
-        include_lumisections: bool = bool(wf_dict.get('TotalInputLumis'))
+        include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
         self.logger.info('Getting a new entry - Lumisections to be included: %s', include_lumisections)
         output_datasets = wf_dict.get('OutputDatasets')
         if not output_datasets:
@@ -358,13 +358,21 @@ class StatsUpdate():
             if output_dataset in self.dataset_info_cache:
                 # Trying to find type, events and size in cache
                 cache_entry = self.dataset_info_cache[output_dataset]
-                self.logger.info(
-                    'Found cache entry for dataset %s: %s', 
-                    output_dataset, 
-                    json.dumps(cache_entry, indent=5)
-                )
-                history_entry['Datasets'][output_dataset] = cache_entry
-                output_datasets_set.remove(output_dataset)
+
+                # Check if the cache entry requires/has lumisections
+                # attributes
+                if not include_lumisections or (
+                    include_lumisections 
+                    and 
+                    bool(cache_entry.get("Lumis"))
+                ):
+                    self.logger.info(
+                        'Found cache entry for dataset %s: %s', 
+                        output_dataset, 
+                        json.dumps(cache_entry, indent=5)
+                    )
+                    history_entry['Datasets'][output_dataset] = cache_entry
+                    output_datasets_set.remove(output_dataset)
             else:
                 # Add dataset to list of datasets that are not in cache
                 output_datasets_to_query.append(output_dataset)
@@ -469,7 +477,7 @@ class StatsUpdate():
         """
         Add history entry to workflow if such entry does not exist.
         """
-        include_lumisections: bool = bool(wf_dict.get('TotalInputLumis'))
+        include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
         self.logger.info("Adding new history to workflow - Include lumisections: %s", include_lumisections)
         if new_history_entry is None:
             return False

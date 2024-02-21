@@ -3,15 +3,13 @@ This module scans all the ReReco workflows
 available in Stats2 request database and retrieves from
 ReqMgr2 and DBS the data related to lumisection progress
 """
+
 import os
 import pprint
 import datetime
 from copy import deepcopy
 from stats_update import StatsUpdate
-from utils import (
-    make_request,
-    setup_console_logging
-)
+from utils import make_request, setup_console_logging
 
 # Set up the logger
 setup_console_logging()
@@ -33,31 +31,33 @@ stats_handler: StatsUpdate = StatsUpdate()
 logger = stats_handler.logger
 
 
-def retrieve_all_from_request_type(type: str, limit: int = 2**64) -> list[dict]:
+def retrieve_all_lumi_requests(limit: int = 2**64) -> list[dict]:
     """
     Queries Stats2 'requests' database and returns all
-    the documents that match an specific 'RequestType'
+    the related to ReReco request that could include lumisections.
 
     Args:
-        type (str): Desired 'RequestType' to return
         limit (int): Maximum number of documents to retrieved.
 
     Returns:
-        list[dict]: Request documents that match with the requested
-            'RequestType'
+        list[dict]: Stats2 documents that match with the
+            query.
     """
     # Mango query
     query = {
         "selector": {
-            "RequestType": {"$eq": type}
+            "$or": [
+                {"RequestType": "ReReco"},
+                {"RequestType": "Resubmission", "PrepID": {"$regex": "^ReReco"}},
+            ]
         },
         "limit": limit,
         "skip": 0,
-        "execution_stats": True
+        "execution_stats": True,
     }
 
     # HTTP Request
-    # INFO: Temporarily remove the environment variables 
+    # INFO: Temporarily remove the environment variables
     # USERCRT and USERKEY so that make_request doesn't crash
     USERCRT = os.getenv("USERCRT", None)
     USERKEY = os.getenv("USERKEY", None)
@@ -67,14 +67,14 @@ def retrieve_all_from_request_type(type: str, limit: int = 2**64) -> list[dict]:
     headers = {
         "Accept": "application/json",
         "Content-type": "application/json",
-        "Authorization": os.getenv('STATS_DB_AUTH_HEADER')
+        "Authorization": os.getenv("STATS_DB_AUTH_HEADER"),
     }
     result = make_request(
         host=os.getenv("DB_URL"),
         query_url="/requests/_find",
         data=query,
         timeout=240,
-        headers=headers
+        headers=headers,
     )
 
     # Restore them
@@ -84,18 +84,15 @@ def retrieve_all_from_request_type(type: str, limit: int = 2**64) -> list[dict]:
     if not result:
         logger.error("Unable to perform the mango query: %s", pprint.pformat(query))
         return []
-    
+
     execution_stats = result.get("execution_stats", {})
     docs = result.get("docs", [])
-    logger.info(
-        "Execution time: %s\n",
-        pprint.pformat(execution_stats)
-    )
+    logger.info("Execution time: %s\n", pprint.pformat(execution_stats))
 
     return docs
 
 
-def include_lumisections(stats_req: dict) -> dict:
+def include_lumisections(stats_req: dict) -> tuple[dict, bool]:
     """
     For the given Stats2 request, retrieve from ReqMgr2
     and DBS the number of lumisections processed and include this
@@ -106,22 +103,27 @@ def include_lumisections(stats_req: dict) -> dict:
 
     Returns
         dict: Stats2 request with lumisection data included.
+        bool: True if the request was updated.
     """
     # Start function
     name = "RequestName"
     lumis = "TotalInputLumis"
+    lumi_list = "LumiList"
     history = "EventNumberHistory"
     request = deepcopy(stats_req)
+    updated: bool = False
 
     # Retrieve the lumisection information.
     workflow_name: str = request.get(name, "")
     reqmgr_data: dict = stats_handler.get_new_dict_from_reqmgr2(
         workflow_name=workflow_name
     )
-    include_lumis: bool = bool(reqmgr_data.get("TotalInputLumis"))
+    include_lumis: bool = stats_handler.lumis_should_be_retrieved(reqmgr_data)
     if include_lumis:
         reqmgr_lumis: int = reqmgr_data.get(lumis, 0)
+        reqmgr_lumi_list: dict[str, list] = reqmgr_data.get(lumi_list)
         request[lumis] = reqmgr_lumis
+        request[lumi_list] = reqmgr_lumi_list
 
         # Update the dataset history.
         # Include the lumis only the last record.
@@ -129,16 +131,13 @@ def include_lumisections(stats_req: dict) -> dict:
         if history_data:
             history_updated: list[dict] = []
             history_data = sorted(
-                history_data, 
-                key=lambda v: v.get("Time", 0),
-                reverse=True
+                history_data, key=lambda v: v.get("Time", 0), reverse=True
             )
 
             # Update the most recent history
             history_updated.append(
                 stats_handler.update_event_history_lumisections(
-                    history_data.pop(0),
-                    set_default=False
+                    history_data.pop(0), set_default=False
                 )
             )
 
@@ -151,14 +150,14 @@ def include_lumisections(stats_req: dict) -> dict:
             # Sort the history by time
             history_updated = sorted(
                 history_updated,
-                key=lambda entry: entry.get('Time', 0),
+                key=lambda entry: entry.get("Time", 0),
             )
 
             # Update the history
             request[history] = history_updated
+            updated = True
 
-    
-    return request
+    return request, updated
 
 
 def execute() -> None:
@@ -169,9 +168,7 @@ def execute() -> None:
     start_time = datetime.datetime.now()
 
     # Retrieve all the workflows
-    rereco_workflows = retrieve_all_from_request_type(
-        type="ReReco"
-    )
+    rereco_workflows = retrieve_all_lumi_requests()
 
     # Lumisections included
     rereco_lumisections = []
@@ -182,25 +179,22 @@ def execute() -> None:
             len(rereco_workflows),
             stats_req.get("_id"),
         )
-        updated = include_lumisections(stats_req)
-        logger.info("Storing update into database")
-        stats_handler.database.update_workflow(updated)
-        rereco_lumisections.append(updated)
-    
+        request, updated = include_lumisections(stats_req)
+        if updated:
+            logger.info("Storing update into database")
+            stats_handler.database.update_workflow(request)
+            rereco_lumisections.append(request)
+        else:
+            logger.warning("It wasn't required to include lumisections, skipping")
+
     end_time = datetime.datetime.now()
 
     logger.info(
         "Updated documents (%s)",
         len(rereco_lumisections),
     )
-    logger.debug(
-        "Documents content: %s",
-        pprint.pformat(rereco_lumisections)
-    )
-    logger.info(
-        "Elapsed time: %s",
-        end_time - start_time
-    )
+    logger.debug("Documents content: %s", pprint.pformat(rereco_lumisections))
+    logger.info("Elapsed time: %s", end_time - start_time)
 
     pass
 
