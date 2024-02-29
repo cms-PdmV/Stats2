@@ -103,9 +103,15 @@
             <ul>
               {% for dataset in workflow.OutputDatasets %}
                 <li>
-                  <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" class="gray-bar">
-                    <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar {{dataset.Type | lower}}-bar"></div>
-                  </div>
+                  {% if dataset.Lumis is defined %}
+                    <div title="{{ dataset.Type }}, {{ dataset.LumiCompletedPerc }}%" class="gray-bar">
+                      <div title="{{ dataset.Type }}, {{ dataset.LumiCompletedPerc }}%" style="width: {{ dataset.LumiCompletedPerc }}%;" class="bar {{dataset.Type | lower}}-bar"></div>
+                    </div>
+                  {% else %}
+                    <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" class="gray-bar">
+                      <div title="{{ dataset.Type }}, {{ dataset.CompletedPerc }}%" style="width: {{ dataset.CompletedPerc }}%;" class="bar {{dataset.Type | lower}}-bar"></div>
+                    </div>
+                  {% endif %}
                   <small>datatier:</small> {{dataset.Datatier}},
                   {% if dataset.Lumis is defined %}
                     <small>completed (on lumisections):</small> {{dataset.LumiCompletedPerc}}%,
