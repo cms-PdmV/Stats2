@@ -192,6 +192,7 @@ class StatsUpdate():
         url = f'/couchdb/reqmgr_workload_cache/{workflow_name}'
         wf_dict = make_cmsweb_request(url)
         expected_events = self.get_expected_events_with_dict(wf_dict)
+        expected_lumis = self.get_expected_lumis_with_dict(wf_dict)
         campaigns = self.get_campaigns_from_workflow(wf_dict)
         requests = self.get_requests_from_workflow(wf_dict)
         include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
@@ -225,6 +226,7 @@ class StatsUpdate():
                                          'UpdateTime': tr['UpdateTime']} for tr in wf_dict.get('RequestTransition', [])]
         wf_dict['_id'] = workflow_name
         wf_dict['TotalEvents'] = expected_events
+        wf_dict['TotalInputLumis'] = expected_lumis
         wf_dict['Campaigns'] = campaigns
         wf_dict['Requests'] = requests
         wf_dict['OutputDatasets'] = self.sort_datasets(self.flat_list(wf_dict['OutputDatasets']))
@@ -555,6 +557,36 @@ class StatsUpdate():
 
         self.logger.error('%s does not have total events!', wf_dict['_id'])
         return -1
+
+    def get_expected_lumis_with_dict(self, wf_dict):
+        """
+        Get the total lumisections for a given ReqMgr2 workflow.
+        In case the a Resubmission workflow is given, the total
+        lumisection linked to the parent request will be retrieved.
+
+        Args:
+            wf_dict (dict): ReqMgr2 workflow data.
+
+        Returns:
+            int: Number of total input lumis for the related workflow.
+        """
+        wf_type = wf_dict.get('RequestType', '').lower()
+        if wf_type == "resubmission":
+            # Look for the parent request.
+            prep_id = wf_dict['PrepID']
+            url = f'/reqmgr2/data/request?mask=TotalInputLumis&mask=RequestType&prep_id={prep_id}'
+            ret = make_cmsweb_request(url)
+            ret = ret['result']
+            if ret:
+                ret = ret[0]
+                for request_name in ret:
+                    if ret[request_name]['RequestType'].lower() != 'resubmission' and ret[request_name]['TotalInputLumis'] is not None:
+                        return int(ret[request_name]['TotalInputLumis'])
+        else:
+            total_input_lumis = wf_dict.get('TotalInputLumis', -1)
+            if total_input_lumis == -1:
+                self.logger.error('%s does not have `TotalInputLumis` defined!', wf_dict['_id'])
+            return total_input_lumis
 
     def get_campaigns_from_workflow(self, wf_dict):
         """
