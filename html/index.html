@@ -39,7 +39,7 @@
                 <small>PrepID:</small> <a href="0?prepid={{ workflow.PrepID }}">{{ workflow.PrepID }}</a><br>
               {% endif %}
               <small>Type:</small> <a href="0?type={{ workflow.RequestType }}">{{ workflow.RequestType }}</a><br>
-              {% if workflow.TotalInputLumis is defined %}
+              {% if workflow.LumiList %}
                 <small>Total lumisections:</small> {{ workflow.TotalInputLumis }}<br>
               {% else %}
                 <small>Total events:</small> {{ workflow.TotalEvents }}<br>
