@@ -315,6 +315,7 @@ def html_get(page=0):
         calculated_datasets = []
 
         total_events = req.get('TotalEvents', 0)
+        total_lumisections = req.get('TotalInputLumis', 0)
         for dataset in req['OutputDatasets']:
             new_dataset = {'Name': dataset,
                            'Events': 0,
@@ -323,9 +324,17 @@ def html_get(page=0):
                            'Datatier': dataset.split('/')[-1],
                            'Size': -1,
                            'NiceSize': '0B'}
-            for history_entry in reversed(req['EventNumberHistory']):
+            
+            # Retrieve the most recent history entry for the current request
+            history_entries = sorted(
+                req['EventNumberHistory'],
+                key=lambda entry: entry.get('Time', 0),
+                reverse=True
+            )
+            for history_entry in history_entries:
                 history_entry = history_entry['Datasets']
                 if dataset in history_entry:
+                    output_lumisections: int | None = history_entry[dataset].get('Lumis')
                     new_dataset['Events'] = comma_separate_thousands(history_entry[dataset]['Events'])
                     new_dataset['Type'] = history_entry[dataset]['Type']
                     new_dataset['Size'] = history_entry[dataset].get('Size', -1)
@@ -333,18 +342,22 @@ def html_get(page=0):
                     if total_events > 0:
                         percentage = history_entry[dataset]['Events'] / total_events * 100.0
                         new_dataset['CompletedPerc'] = '%.2f' % (percentage)
+                    if output_lumisections and total_lumisections > 0:
+                        new_dataset['Lumis'] = comma_separate_thousands(output_lumisections)
+                        lumi_percentage = output_lumisections / total_lumisections * 100.0
+                        new_dataset['LumiCompletedPerc'] = '%.2f' % (lumi_percentage)
 
                     break
 
             calculated_datasets.append(new_dataset)
 
         req['OutputDatasets'] = calculated_datasets
-        if 'TotalEvents' in req:
-            req['TotalEvents'] = comma_separate_thousands(int(req['TotalEvents']))
+        req['TotalEvents'] = comma_separate_thousands(int(total_events))
+        if total_lumisections > 0:
+            req['TotalInputLumis'] = comma_separate_thousands(int(total_lumisections))
 
         if 'RequestPriority' in req:
             req['RequestPriority'] = comma_separate_thousands(int(req['RequestPriority']))
-
 
     last_stats_update = database.get_setting('last_dbs_update_date', 0)
     last_stats_update = time.strftime(datetime_format, time.localtime(last_stats_update))

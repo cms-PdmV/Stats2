@@ -8,6 +8,7 @@ import json
 import traceback
 import os
 import subprocess
+from copy import deepcopy
 from couchdb_database import Database
 from utils import (
     make_cmsweb_request, 
@@ -191,8 +192,11 @@ class StatsUpdate():
         url = f'/couchdb/reqmgr_workload_cache/{workflow_name}'
         wf_dict = make_cmsweb_request(url)
         expected_events = self.get_expected_events_with_dict(wf_dict)
+        expected_lumis = self.get_expected_lumis_with_dict(wf_dict)
         campaigns = self.get_campaigns_from_workflow(wf_dict)
         requests = self.get_requests_from_workflow(wf_dict)
+        include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
+        self.logger.info('Get new dictionary from ReqMgr2 data - Lumisections to be included: %s', include_lumisections)
         attributes = ['AcquisitionEra',
                       'CMSSWVersion',
                       'InputDataset',
@@ -203,6 +207,8 @@ class StatsUpdate():
                       'RequestPriority',
                       'RequestTransition',
                       'RequestType',
+                      'LumiList',
+                      'TotalInputLumis',
                       'SizePerEvent',
                       'TimePerEvent']
         if 'Task1' in wf_dict and 'InputDataset' in wf_dict['Task1']:
@@ -220,6 +226,7 @@ class StatsUpdate():
                                          'UpdateTime': tr['UpdateTime']} for tr in wf_dict.get('RequestTransition', [])]
         wf_dict['_id'] = workflow_name
         wf_dict['TotalEvents'] = expected_events
+        wf_dict['TotalInputLumis'] = expected_lumis
         wf_dict['Campaigns'] = campaigns
         wf_dict['Requests'] = requests
         wf_dict['OutputDatasets'] = self.sort_datasets(self.flat_list(wf_dict['OutputDatasets']))
@@ -259,6 +266,26 @@ class StatsUpdate():
             return filesummaries[0]
 
         return {}
+    
+    def lumis_should_be_retrieved(self, doc):
+        """
+        Determines if the lumisections should be included based on
+        Stats2 or ReqMgr2 documents.
+
+        Args:
+            doc (dict): ReqMgr2 workflow attributes or Stats2 document.
+        
+        Returns:
+            True if the lumisections should be included, False otherwise
+        """
+        request_type: str = doc.get('RequestType', '').lower()
+        is_rereco_related: bool = request_type == 'rereco' or request_type == 'resubmission'
+
+        lumi_list_not_empty: bool = bool(doc.get('LumiList'))
+        has_total_input_lumis: bool = bool(doc.get('TotalInputLumis'))
+
+        decision = is_rereco_related and lumi_list_not_empty and has_total_input_lumis
+        return decision
 
     def get_workflows_with_same_output(self, workflow_names):
         """
@@ -301,11 +328,26 @@ class StatsUpdate():
 
         file_size = int(file_summary.get('file_size', 0))
         return file_size
+    
+    def get_dataset_lumisections(self, dataset_name):
+        """
+        Get the lumisections for specified dataset from DBS.
+        """
+        if dataset_name not in self.dataset_filesummaries_cache:
+            file_summary = self.__get_filesummaries_from_dbs(dataset_name)
+            self.dataset_filesummaries_cache[dataset_name] = file_summary
+        else:
+            file_summary = self.dataset_filesummaries_cache[dataset_name]
+
+        lumisections = int(file_summary.get('num_lumi', 0))
+        return lumisections
 
     def get_new_history_entry(self, wf_dict):
         """
         Form a new history entry dictionary for given workflow.
         """
+        include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
+        self.logger.info('Getting a new entry - Lumisections to be included: %s', include_lumisections)
         output_datasets = wf_dict.get('OutputDatasets')
         if not output_datasets:
             return None
@@ -318,13 +360,21 @@ class StatsUpdate():
             if output_dataset in self.dataset_info_cache:
                 # Trying to find type, events and size in cache
                 cache_entry = self.dataset_info_cache[output_dataset]
-                self.logger.info('Found %s dataset info in cache. Type: %s, events: %s, size: %s',
-                                 output_dataset,
-                                 cache_entry['Type'],
-                                 cache_entry['Events'],
-                                 cache_entry['Size'])
-                history_entry['Datasets'][output_dataset] = cache_entry
-                output_datasets_set.remove(output_dataset)
+
+                # Check if the cache entry requires/has lumisections
+                # attributes
+                if not include_lumisections or (
+                    include_lumisections 
+                    and 
+                    bool(cache_entry.get("Lumis"))
+                ):
+                    self.logger.info(
+                        'Found cache entry for dataset %s: %s', 
+                        output_dataset, 
+                        json.dumps(cache_entry, indent=5)
+                    )
+                    history_entry['Datasets'][output_dataset] = cache_entry
+                    output_datasets_set.remove(output_dataset)
             else:
                 # Add dataset to list of datasets that are not in cache
                 output_datasets_to_query.append(output_dataset)
@@ -349,33 +399,40 @@ class StatsUpdate():
             history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
                                                        'Events': dataset_events,
                                                        'Size': dataset_size}
+            if include_lumisections:
+                dataset_lumis = self.get_dataset_lumisections(dataset_name)
+                history_entry['Datasets'][dataset_name]['Lumis'] = dataset_lumis
+
             # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events, %s size and %s type for %s (%s)',
-                             dataset_events,
-                             dataset_size,
-                             dataset_access_type,
-                             dataset_name,
-                             wf_dict.get('_id'))
+            self.logger.info(
+                'New cache entry for workflow %s: %s',
+                wf_dict.get('_id'),
+                json.dumps(self.dataset_info_cache[dataset_name], indent=5)
+            )
             output_datasets_set.remove(dataset_name)
 
         for dataset_name in output_datasets_set:
-            # Datasets that were not in the cache and not in response of query, make them NONE type with 0 events and 0 size
+            # Datasets that were not in the cache and not in response of query, make them NONE type with 0 events, 0 lumis and 0 size
             dataset_access_type = 'NONE'
             dataset_events = 0
             dataset_size = 0
+
             # Setting defaults
             history_entry['Datasets'][dataset_name] = {'Type': dataset_access_type,
                                                        'Events': dataset_events,
                                                        'Size': dataset_size}
+
+            if include_lumisections:
+                history_entry['Datasets'][dataset_name]['Lumis'] = 0
+
             # Put a copy to cache
             self.dataset_info_cache[dataset_name] = dict(history_entry['Datasets'][dataset_name])
-            self.logger.info('Setting %s events, %s size and %s type for %s (%s)',
-                             dataset_events,
-                             dataset_size,
-                             dataset_access_type,
-                             dataset_name,
-                             wf_dict.get('_id'))
+            self.logger.info(
+                'Dummy record created for workflow %s: %s',
+                wf_dict.get('_id'),
+                json.dumps(self.dataset_info_cache[dataset_name], indent=5)
+            )
 
         if len(history_entry['Datasets']) != len(set(output_datasets)):
             self.logger.error('Wrong number of datasets for %s. '
@@ -388,11 +445,42 @@ class StatsUpdate():
             return None
 
         return history_entry
+    
+    def update_event_history_lumisections(self, history_entry, set_default=True):
+        """
+        Updates a record for the 'EventNumberHistory' object including the
+        lumisection record per each registered dataset.
+
+        Args:
+            history_entry (dict): 'EventNumberHistory' object included into Stats2 request.
+            set_default (bool): If True, sets the lumisection value ('Lumis') as zero
+                in case it doesn't exist before, otherwise, this queries DBS and returns 
+                the current value for the dataset.
+
+        Returns:
+            dict: Event history record with lumisection data included.
+        """
+        history = deepcopy(history_entry)
+        datasets = history.get("Datasets", {})
+        for dataset_name, dataset_record in datasets.items():
+            lumis = dataset_record.get("Lumis", 0)
+            if not set_default:
+                # Query DBS
+                lumis = self.get_dataset_lumisections(dataset_name=dataset_name)
+
+            dataset_record["Lumis"] = lumis
+
+            # Update the content
+            history["Datasets"][dataset_name] = dataset_record
+
+        return history
 
     def add_history_entry_to_workflow(self, wf_dict, new_history_entry):
         """
         Add history entry to workflow if such entry does not exist.
         """
+        include_lumisections: bool = self.lumis_should_be_retrieved(wf_dict)
+        self.logger.info("Adding new history to workflow - Include lumisections: %s", include_lumisections)
         if new_history_entry is None:
             return False
 
@@ -409,6 +497,15 @@ class StatsUpdate():
                 return False
 
         history_entries.append(new_history_entry)
+
+        # Before returning the complete history, include the 'lumisection' attribute
+        # if required.
+        if include_lumisections:
+            history_entries = [
+                self.update_event_history_lumisections(entry)
+                for entry in history_entries
+            ]
+
         wf_dict['EventNumberHistory'] = history_entries
         # self.logger.info(json.dumps(history_entry, indent=2))
         return True
@@ -460,6 +557,36 @@ class StatsUpdate():
 
         self.logger.error('%s does not have total events!', wf_dict['_id'])
         return -1
+
+    def get_expected_lumis_with_dict(self, wf_dict):
+        """
+        Get the total lumisections for a given ReqMgr2 workflow.
+        In case the a Resubmission workflow is given, the total
+        lumisection linked to the parent request will be retrieved.
+
+        Args:
+            wf_dict (dict): ReqMgr2 workflow data.
+
+        Returns:
+            int: Number of total input lumis for the related workflow.
+        """
+        wf_type = wf_dict.get('RequestType', '').lower()
+        if wf_type == "resubmission":
+            # Look for the parent request.
+            prep_id = wf_dict['PrepID']
+            url = f'/reqmgr2/data/request?mask=TotalInputLumis&mask=RequestType&prep_id={prep_id}'
+            ret = make_cmsweb_request(url)
+            ret = ret['result']
+            if ret:
+                ret = ret[0]
+                for request_name in ret:
+                    if ret[request_name]['RequestType'].lower() != 'resubmission' and ret[request_name]['TotalInputLumis'] is not None:
+                        return int(ret[request_name]['TotalInputLumis'])
+        else:
+            total_input_lumis = wf_dict.get('TotalInputLumis', -1)
+            if total_input_lumis == -1:
+                self.logger.error('%s does not have `TotalInputLumis` defined!', wf_dict['_id'])
+            return total_input_lumis
 
     def get_campaigns_from_workflow(self, wf_dict):
         """
@@ -714,7 +841,7 @@ class StatsUpdate():
         workflow_name = workflow['_id']
         workflow_type = workflow.get('RequestType')
         outside_urls = []
-        self.logger.info('Trigger outside for %s (%s)', workflow_name, workflow_type)
+
         if trigger_prod:
             if workflow_type.lower() == 'rereco' or workflow.get('PrepID', '').startswith('ReReco-'):
                 outside_urls.append({'host': 'https://cms-pdmv-prod.web.cern.ch',
@@ -744,23 +871,25 @@ class StatsUpdate():
                                      'endpoint': f'/mcm/restapi/requests/fetch_stats_by_wf/{workflow_name}',
                                      'production': False})
         
-        credentials: dict[str, str] = get_client_credentials()
-        headers: dict[str, str] = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-        for outside in outside_urls:
-            self.logger.info('Triggering outside for %s', workflow_name)
-            production = outside.get('production', True)
-            auth_token_header = get_access_token(credentials=credentials, production=production)
-            headers = {**headers, "Authorization": auth_token_header}
-            make_request(
-                host=outside["host"], 
-                query_url=outside["endpoint"], 
-                data=outside.get("data"), 
-                timeout=20, 
-                headers=headers
-            )
+        if trigger_prod or trigger_dev:
+            self.logger.info('Trigger outside for %s (%s)', workflow_name, workflow_type)
+            credentials: dict[str, str] = get_client_credentials()
+            headers: dict[str, str] = {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            for outside in outside_urls:
+                self.logger.info('Triggering outside for %s', workflow_name)
+                production = outside.get('production', True)
+                auth_token_header = get_access_token(credentials=credentials, production=production)
+                headers = {**headers, "Authorization": auth_token_header}
+                make_request(
+                    host=outside["host"], 
+                    query_url=outside["endpoint"], 
+                    data=outside.get("data"), 
+                    timeout=20, 
+                    headers=headers
+                )
 
 
 def main():
