@@ -1,15 +1,19 @@
 # Build dependencies
-FROM python:3.11.4-alpine3.18@sha256:0135ae6442d1269379860b361760ad2cf6ab7c403d21935a8015b48d5bf78a86 AS build
+FROM python:3.11.10-alpine3.20@sha256:f089154eb2546de825151b9340a60d39e2ba986ab17aaffca14301b0b961a11c AS build
+RUN apk update && apk upgrade
 
 WORKDIR /usr/app
 RUN python -m venv /usr/app/venv
 ENV PATH="/usr/app/venv/bin:$PATH"
 
 COPY requirements.txt .
+RUN pip install --upgrade pip setuptools wheel
 RUN pip install -r requirements.txt
 
 # Deployment image
-FROM python:3.11.4-alpine3.18@sha256:0135ae6442d1269379860b361760ad2cf6ab7c403d21935a8015b48d5bf78a86 AS backend
+FROM python:3.11.10-alpine3.20@sha256:f089154eb2546de825151b9340a60d39e2ba986ab17aaffca14301b0b961a11c AS backend
+RUN apk update && apk upgrade
+RUN pip install --upgrade pip setuptools wheel
 
 RUN addgroup -g 1001 pdmv && adduser --disabled-password -u 1001 -G pdmv pdmv
 
