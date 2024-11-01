@@ -7,6 +7,7 @@ import time
 import argparse
 import re
 import logging
+import pandas as pd
 from flask import (
     Flask,
     render_template, 
@@ -45,6 +46,80 @@ def html_view_json(workflow_name):
 
     response.headers['Content-Type'] = 'application/json'
     return response
+
+
+def report_as_markdown(workflows: list[dict]) -> str:
+    """
+    Parse the result of a query as markdown picking only the
+    following attributes:
+        - RequestName (workflow)
+        - InputDataset
+        - OutputDatasets
+
+    Each entry is formatted with links to Stats2 and CMS Web DAS.
+
+    Args:
+        - workflows: Query result.
+    Return:
+        Result formatted as a markdown table.
+    """
+    if not len(workflows):
+        # INFO: There are no results for this query
+        return ""
+
+    workflows_df: pd.DataFrame = pd.DataFrame(workflows)
+    subset: pd.DataFrame = workflows_df[["RequestName", "InputDataset", "OutputDatasets"]]
+
+    # Fill NaN values with ""
+    subset = subset.fillna("")
+
+    # Parse and include links
+    STATS_WORKFLOW_URL = "https://cms-pdmv-prod.web.cern.ch/stats/?workflow_name="
+    CMS_WEB_DAS_URL = "https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D"
+
+    subset["RequestName"] = subset["RequestName"].apply(
+        lambda workflow: (
+            f"[{workflow}]({STATS_WORKFLOW_URL}{workflow})"
+            if workflow else workflow
+        )
+    )
+    subset["InputDataset"] = subset["InputDataset"].apply(
+        lambda input_dataset: (
+            f"[{input_dataset}]({CMS_WEB_DAS_URL}{input_dataset})"
+            if input_dataset else input_dataset
+        )
+    )
+    subset["OutputDatasets"] = subset["OutputDatasets"].apply(
+        lambda output_datasets: "\n".join(f"- [{el}]({CMS_WEB_DAS_URL}{el})" for el in output_datasets) + "\n "
+    )
+
+    return subset.to_markdown(index=False)
+
+@app.route('/md')
+def html_view_markdown():
+    """
+    Return workflows for a given q= query
+    """
+    page = 0
+    workflows = []
+    fetched = [{}]
+    while len(fetched) > 0 and page < 5:
+        fetched = get_page(page)
+        workflows.extend(fetched)
+        page += 1
+        time.sleep(0.1)
+
+    try:
+        content = report_as_markdown(workflows=workflows)
+        response = make_response(content, 200)
+        response.headers['Content-Type'] = 'text/plain'
+        return response
+    except Exception as e:
+        logging.error(e)
+        content = "# Unable to format the result as markdown"
+        response = make_response(content, 500)
+        response.headers['Content-Type'] = 'text/plain'
+        return response
 
 
 @app.route('/api/fetch')

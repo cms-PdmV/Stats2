@@ -34,8 +34,6 @@ export DB_URL='....'
 
 python3 stats_updater.py --action update
 ```
-## No Javascript!
-Stats2 website has absolutely no javascript! This leads to great compatibility and faster load times.
 ## Console usage
 Usually Stats2 should be used from web browser, but it can be used as a python script as well:
 Update all requests:
