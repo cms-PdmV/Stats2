@@ -23,6 +23,7 @@
             <input style="margin-left: 6px; margin-right: 6px; width:525px;" type="text" name="q" id="q" placeholder="Workflow, PrepID, Input or Output Dataset, etc.">
           </div>
           <button type="submit" class="btn btn-outline-primary" style="padding: 2px 12px" value="Search">Search</button>
+          <button type="button" class="btn btn-outline-secondary" style="padding: 2px 12px; margin-left: 6px;" onclick="resultAsMarkdown()">Create markdown table</button>
         </form>
       </li>
     </ul>
@@ -143,4 +144,11 @@
       </ul>
     </div>
   </body>
+  <script>
+    function resultAsMarkdown() {
+      const url = new URL(window.location.href);
+      const markdownPage = "md" + url.search;
+      window.open(markdownPage, '_blank');
+    }
+  </script>
 </html>
