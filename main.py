@@ -489,7 +489,7 @@ def html_update():
         return redirect('/stats', code=302)
 
     stats_update = StatsUpdate()
-    stats_update.update_one(wf_name)
+    stats_update.perform_update_one(wf_name)
     return redirect('/stats?workflow_name=' + wf_name, code=302)
 
 
