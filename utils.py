@@ -6,6 +6,7 @@ import logging
 import time
 import os
 import datetime
+import hashlib
 import urllib.parse
 from connection_wrapper import ConnectionWrapper
 
@@ -267,3 +268,9 @@ def get_nice_size(size, base=1000.0):
 
 def comma_separate_thousands(number):
     return "{:,}".format(int(number))
+
+
+def hash_object(obj) -> str:
+    # Convert object to a canonical JSON string to ensure stable representation
+    obj_str = json.dumps(obj, sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(obj_str.encode('utf-8')).hexdigest()

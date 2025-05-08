@@ -18,6 +18,7 @@ from utils import (
     make_request,
     get_client_credentials,
     get_access_token,
+    hash_object
 )
 
 
@@ -33,6 +34,8 @@ class StatsUpdate():
         self.dataset_filesummaries_cache = {}
         # Cache for DBS dataset info + filiesummaries calls
         self.dataset_info_cache = {}
+        # Cache for DBS file calls
+        self.dataset_files_cache = {}
 
     def perform_update(self, workflow_name=None, trigger_prod=False, trigger_dev=False):
         """
@@ -266,7 +269,29 @@ class StatsUpdate():
             return filesummaries[0]
 
         return {}
-    
+
+    def _get_files_from_dbs(self, dataset_name, lumi_list, dataset_access_type=None):
+        """Get the file details related to a dataset and a lumi list."""
+        lumi_hash = hash_object(lumi_list)
+        cache_key = (dataset_name, lumi_hash)
+        files = []
+        if cache_key not in self.dataset_files_cache:
+            for run_number, lumi_list in lumi_list.items():
+                lumi_list_param = str(lumi_list).replace(' ', '')
+                query_url = f'/dbs/prod/global/DBSReader/files?dataset={dataset_name}&detail=true&run_num={int(run_number)}&lumi_list={lumi_list_param}'
+                if dataset_access_type in ('PRODUCTION', 'VALID'):
+                    query_url += '&validFileOnly=1'
+                files_response = make_cmsweb_prod_request(query_url)
+                if files_response:
+                    files.extend(files_response)
+
+            # Save it in cache
+            self.dataset_files_cache[cache_key] = files
+        else:
+            files = self.dataset_files_cache[cache_key]
+
+        return files
+
     def lumis_should_be_retrieved(self, doc):
         """
         Determines if the lumisections should be included based on
@@ -303,10 +328,18 @@ class StatsUpdate():
 
         return same_output_workflows
 
-    def get_event_count_from_dbs(self, dataset_name, dataset_access_type=None):
+    def get_event_count_from_dbs(self, dataset_name, dataset_access_type=None, lumi_list=None):
         """
         Get event count for specified dataset from DBS.
         """
+        if lumi_list:
+            self.logger.info('Computing number of events using a lumi mask for %s', dataset_name)
+            files = self._get_files_from_dbs(dataset_name, lumi_list, dataset_access_type)
+            num_events = 0
+            for file in files:
+                num_events += file.get("event_count", 0)
+            return num_events
+
         if dataset_name not in self.dataset_filesummaries_cache:
             file_summary = self.__get_filesummaries_from_dbs(dataset_name, dataset_access_type)
             self.dataset_filesummaries_cache[dataset_name] = file_summary
@@ -539,10 +572,14 @@ class StatsUpdate():
                 return int(wf_dict['Step1']['RequestNumEvents'])
 
             if 'Task1' in wf_dict and 'InputDataset' in wf_dict['Task1']:
-                return self.get_event_count_from_dbs(wf_dict['Task1']['InputDataset'])
+                return self.get_event_count_from_dbs(
+                    dataset_name=wf_dict['Task1']['InputDataset'], lumi_list=wf_dict['Task1'].get('LumiList')
+                )
 
             if 'Step1' in wf_dict and 'InputDataset' in wf_dict['Step1']:
-                return self.get_event_count_from_dbs(wf_dict['Step1']['InputDataset'])
+                return self.get_event_count_from_dbs(
+                    dataset_name=wf_dict['Step1']['InputDataset'], lumi_list=wf_dict['Step1'].get('LumiList')
+                )
 
         else:
             prep_id = wf_dict['PrepID']
