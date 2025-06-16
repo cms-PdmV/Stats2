@@ -141,49 +141,14 @@ def html_api_fetch():
     return response
 
 
-def administrative_action() -> bool:
-    """
-    Check that a HTTP request is allowed to execute some administrative actions
-    by checking roles provided in its headers.
-
-    Returns:
-        bool: True if the request provides at least one of the autorized roles to perform
-            administrative actions, False otherwise.
-    """
-    authorized: list[str] = ["cms-pdmv-serv"]
-    request_roles: list[str] = []
-    roles_str: str = ""
-    
-    if request.headers.get("Adfs-Group"):
-        roles_str = request.headers.get("Adfs-Group", "")
-        roles_str = roles_str.replace(";", ",")
-        request_roles = roles_str.strip().split(",")
-    elif request.headers.get("Roles"):
-        roles_str = request.headers.get("Roles", "")
-        roles_str = roles_str.replace(";", ",")
-        request_roles = roles_str.strip().split(",")
-
-    auth_set: set[str] = set(authorized)
-    roles_set: set[str] = set(request_roles)
-    return bool(auth_set & roles_set)
-
-
-@app.route(rule='/api/update', methods=["POST"])
+@app.route(rule='/api/update', methods=["GET"])
 def update_workflow() -> Response:
     error: dict[str, str] = {}
     
-    # Check request is allowed
-    authorized: bool = administrative_action()
-    if not authorized:
-        error = {"msg": "You are not allowed to perform this action"}
-        response = jsonify(error)
-        response.status_code = 403
-        return response
-
     # Get the workflow name from query parameters
-    workflow_name: str = request.args.get("workflow", "")
+    workflow_name: str = request.args.get("workflow_name", "")
     if not workflow_name:
-        error = {"msg": "Please provide the workflow name via 'workflow' query parameter"}
+        error = {"msg": "Please provide the workflow name via 'workflow_name' query parameter"}
         response = jsonify(error)
         response.status_code = 400
         return response
@@ -191,7 +156,7 @@ def update_workflow() -> Response:
     # Perform the update
     try:
         stats_update: StatsUpdate = StatsUpdate()
-        stats_update.perform_update(workflow_name=workflow_name)
+        stats_update.perform_update_one(workflow_name=workflow_name)
         
         result: dict[str, str] = {"msg": f"Workflow {workflow_name} has been updated successfully"}
         response = jsonify(result)
@@ -477,20 +442,6 @@ def html_search():
         return redirect('/stats?request=' + query, code=302)
 
     return redirect('/stats?workflow_name=' + query, code=302)
-
-
-@app.route('/update')
-def html_update():
-    """
-    Update one workflow
-    """
-    wf_name = request.args.get('workflow_name', '').strip()
-    if not wf_name:
-        return redirect('/stats', code=302)
-
-    stats_update = StatsUpdate()
-    stats_update.update_one(wf_name)
-    return redirect('/stats?workflow_name=' + wf_name, code=302)
 
 
 # Actual get method
