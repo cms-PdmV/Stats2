@@ -1,3 +1,6 @@
+> [!IMPORTANT]  
+> This repository has been migrated to the PPD Technical Support team inside the CERN GitLab instance: [Stats2](https://gitlab.cern.ch/cms-ppd/technical-support/web-services/Stats2). Please open and follow issues directly there, do not open or follow them here!
+
 # Stats2
 ## What is it?
 Stats2 takes list of requests from *RequestManager2* and stores smaller (not all attributes) copy of all requests. It also takes nuber of open/done events from *dbs* and collects history for each dataset in all requests.
